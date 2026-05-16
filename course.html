@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⛰️ 코스 상세 — 등산코스 플래너</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Kakao Maps SDK: autoload=false 로 제어권 확보 -->
+  <!-- TODO: Replace YOUR_KAKAO_API_KEY with actual key from https://developers.kakao.com -->
+  <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=c26448b14a19902c5eb4b23ccc26172f&autoload=false"></script>
+  <link rel="stylesheet" href="css/style.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0fdf4', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-50">
+
+  <!-- 헤더 -->
+  <header class="bg-white border-b border-gray-200 h-14 flex items-center px-4 gap-3 z-40 relative" style="--header-height:56px">
+    <a href="index.html" class="p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors flex items-center justify-center">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+      </svg>
+    </a>
+    <h1 class="text-base font-bold text-gray-900 flex-1 truncate flex items-center gap-1.5">
+      ⛰️ <span id="header-title">등산코스 플래너</span>
+    </h1>
+    <button id="btn-bookmark-header" onclick="handleBookmarkToggle()" class="p-2 rounded-full hover:bg-gray-100 text-xl transition-all" title="코스 저장">🤍</button>
+    <button onclick="handleShare()" class="p-2 rounded-full hover:bg-gray-100 text-gray-600 text-sm font-medium transition-colors flex items-center gap-1" title="공유하기">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+      </svg>
+    </button>
+  </header>
+
+  <!-- 스플릿 패널 컨테이너 -->
+  <div class="split-container">
+
+    <!-- ===== 좌측 패널 ===== -->
+    <aside class="left-panel">
+
+      <!-- 탭 네비게이션 -->
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="overview"   onclick="switchTab('overview')">코스개요</button>
+        <button class="tab-btn"         data-tab="segments"  onclick="switchTab('segments')">구간상세</button>
+        <button class="tab-btn"         data-tab="info"      onclick="switchTab('info')">관련정보</button>
+        <button class="tab-btn"         data-tab="poi"       onclick="switchTab('poi')">🍽️ 맛집</button>
+        <button class="tab-btn"         data-tab="reviews"   onclick="switchTab('reviews')">후기</button>
+      </nav>
+
+      <!-- ===== Tab 1: 코스개요 ===== -->
+      <div id="tab-overview" class="tab-content active">
+
+        <!-- 코스 요약 카드 -->
+        <div class="summary-card">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex-1">
+              <span id="ov-difficulty-badge" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mb-2">-</span>
+              <h2 id="ov-name" class="text-lg font-bold text-gray-900 leading-tight">-</h2>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 mb-3">
+            <span class="text-yellow-400 text-sm">★</span>
+            <span id="ov-rating" class="text-sm font-semibold text-gray-800">-</span>
+            <span id="ov-rating-count" class="text-xs text-gray-500">-</span>
+          </div>
+          <div class="grid grid-cols-2 gap-y-2 text-sm">
+            <div class="flex items-center gap-2 text-gray-700">
+              <span class="text-base">📏</span>
+              <div><p class="text-xs text-gray-500">총 거리</p><p id="ov-distance" class="font-semibold">-</p></div>
+            </div>
+            <div class="flex items-center gap-2 text-gray-700">
+              <span class="text-base">⏱</span>
+              <div><p class="text-xs text-gray-500">소요시간</p><p id="ov-time" class="font-semibold">-</p></div>
+            </div>
+            <div class="flex items-center gap-2 text-gray-700">
+              <span class="text-base">📈</span>
+              <div><p class="text-xs text-gray-500">최고 고도</p><p id="ov-altitude" class="font-semibold">-</p></div>
+            </div>
+            <div class="flex items-center gap-2 text-gray-700">
+              <span class="text-base">↑</span>
+              <div><p class="text-xs text-gray-500">누적 상승</p><p id="ov-cumulative" class="font-semibold">-</p></div>
+            </div>
+            <div class="flex items-center gap-2 text-gray-700 col-span-2">
+              <span class="text-base">📍</span>
+              <div><p class="text-xs text-gray-500">지역</p><p id="ov-region" class="font-semibold">-</p></div>
+            </div>
+          </div>
+          <!-- 해시태그 -->
+          <div id="ov-tags" class="flex flex-wrap gap-1.5 mt-3"></div>
+        </div>
+
+        <!-- 피트니스 지표 -->
+        <div id="fitness-card" class="bg-white border border-gray-100 rounded-2xl p-4 mb-4"></div>
+
+        <!-- 고도 프로파일 차트 -->
+        <div class="chart-wrapper">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">고도 프로파일</p>
+          <canvas id="altitude-chart" height="160"></canvas>
+        </div>
+
+
+        <!-- 하단 여백 (패널 액션 버튼 공간) -->
+        <div class="h-20"></div>
+      </div>
+
+      <!-- ===== Tab 2: 구간상세 ===== -->
+      <div id="tab-segments" class="tab-content">
+        <!-- 코스 변형 필터 -->
+        <div id="route-filter" class="flex gap-2 mb-4 flex-wrap">
+          <!-- JS로 렌더링 -->
+        </div>
+        <!-- 구간 카드 목록 -->
+        <div id="segment-list">
+          <!-- JS로 렌더링 -->
+        </div>
+        <div class="h-20"></div>
+      </div>
+
+      <!-- ===== Tab 3: 관련정보 ===== -->
+      <div id="tab-info" class="tab-content">
+
+        <!-- 날씨 위젯 플레이스홀더 -->
+        <!-- 방문 최고 시즌 지표 -->
+        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xl">🌸</span>
+            <h3 class="text-sm font-bold text-blue-900">방문 최고 시즌</h3>
+          </div>
+          <p class="font-semibold text-blue-700 text-lg mb-1" id="info-best-season">봄, 가을</p>
+          <p class="text-xs text-blue-600" id="info-season-desc">선선한 날씨와 멋진 풍경을 즐기기 가장 좋은 시기입니다.</p>
+        </div>
+
+        <!-- 접근 정보 카드들 -->
+        <div id="info-cards">
+          <!-- JS로 렌더링 -->
+        </div>
+
+        <!-- 관련 기사 -->
+        <div>
+          <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 mt-4">관련 기사</h3>
+          <div id="articles-grid" class="grid grid-cols-2 gap-3">
+            <!-- JS로 렌더링 -->
+          </div>
+        </div>
+        <div class="h-20"></div>
+      </div>
+
+      <!-- ===== Tab 5: 하산맛집 ===== -->
+      <div id="tab-poi" class="tab-content">
+        <!-- poi.js의 initPOITab()이 이 영역을 채웁니다 -->
+        <div class="flex flex-col items-center py-12">
+          <div class="text-4xl mb-3">🍽️</div>
+          <p class="text-gray-400 text-sm">코스 정보 로딩 후 맛집 탭을 눌러주세요</p>
+        </div>
+      </div>
+
+      <!-- ===== Tab 4: 후기 ===== -->
+      <div id="tab-reviews" class="tab-content">
+        <div class="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-4 flex items-start gap-3">
+          <span class="text-xl">🔒</span>
+          <p class="text-sm text-amber-700">로그인 후 후기를 남길 수 있습니다</p>
+        </div>
+        <!-- 후기 폼 (UI만, 백엔드 없음) -->
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">코스 추천도</label>
+            <div class="flex gap-1" id="star-rating">
+              <button class="text-2xl star-btn text-gray-300 hover:text-yellow-400 transition-colors" data-star="1">★</button>
+              <button class="text-2xl star-btn text-gray-300 hover:text-yellow-400 transition-colors" data-star="2">★</button>
+              <button class="text-2xl star-btn text-gray-300 hover:text-yellow-400 transition-colors" data-star="3">★</button>
+              <button class="text-2xl star-btn text-gray-300 hover:text-yellow-400 transition-colors" data-star="4">★</button>
+              <button class="text-2xl star-btn text-gray-300 hover:text-yellow-400 transition-colors" data-star="5">★</button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">후기 / 추천 이유</label>
+            <textarea
+              class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-transparent"
+              rows="5"
+              placeholder="이 코스를 다녀온 솔직한 후기를 남겨주세요. (예: 난이도, 소요시간, 볼거리 등)"
+              disabled></textarea>
+          </div>
+          <button class="w-full py-3 bg-gray-200 text-gray-500 rounded-xl text-sm font-semibold cursor-not-allowed" disabled>
+            로그인하고 후기 남기기
+          </button>
+          <p class="text-xs text-gray-400 text-center">후기 기능은 현재 개발 중입니다</p>
+        </div>
+        <!-- 기존 후기 플레이스홀더 -->
+        <div class="mt-6">
+          <div class="flex items-center gap-2 mb-3">
+            <h3 class="text-sm font-bold text-gray-700">등산객 후기 <span class="text-gray-400 font-normal">(32)</span></h3>
+            <span class="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded-full border border-yellow-300">[샘플] 실제 후기 데이터로 교체 필요</span>
+          </div>
+          <div class="space-y-3">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+              <div class="flex items-center gap-2 mb-1.5">
+                <div class="w-7 h-7 rounded-full bg-green-200 flex items-center justify-center text-xs font-bold text-green-700">김</div>
+                <span class="text-xs font-semibold text-gray-700">김등산**</span>
+                <span class="text-yellow-400 text-xs">★★★★★</span>
+                <span class="text-xs font-bold text-yellow-600 ml-1">[샘플]</span>
+                <span class="text-xs text-gray-400 ml-auto">2026.04.12</span>
+              </div>
+              <p class="text-xs text-gray-600 leading-relaxed">주말에 다녀왔는데 날씨가 맑아서 정말 좋았어요. 암릉 구간이 살짝 무서웠지만 철봉 잡고 오르면 괜찮습니다!</p>
+            </div>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+              <div class="flex items-center gap-2 mb-1.5">
+                <div class="w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-xs font-bold text-blue-700">이</div>
+                <span class="text-xs font-semibold text-gray-700">이초보**</span>
+                <span class="text-yellow-400 text-xs">★★★★</span>
+                <span class="text-xs font-bold text-yellow-600 ml-1">[샘플]</span>
+                <span class="text-xs text-gray-400 ml-auto">2026.03.28</span>
+              </div>
+              <p class="text-xs text-gray-600 leading-relaxed">처음 등산인데 생각보다 힘들었어요. 하지만 정상에서 보는 뷰는 정말 대박이었습니다. 꼭 다시 가고 싶어요!</p>
+            </div>
+          </div>
+        </div>
+        <div class="h-20"></div>
+      </div>
+
+      <!-- 액션 버튼 (패널 하단 스티키) -->
+      <div class="panel-actions">
+        <button id="btn-save" class="btn-save" onclick="handleBookmarkToggle()">📌 코스 저장하기</button>
+        <button class="btn-share" onclick="handleShare()">🔗 공유</button>
+      </div>
+
+    </aside>
+
+    <!-- ===== 우측 패널 (지도) ===== -->
+    <div class="right-panel">
+      <!-- 카카오 지도 -->
+      <div id="kakao-map"></div>
+
+      <!-- 지도 범례 -->
+      <div class="map-legend">
+        <p class="text-xs font-bold text-gray-700 mb-2">범례</p>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--wp-start)"></div><span class="text-gray-600">출발점</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--wp-waypoint)"></div><span class="text-gray-600">경유지</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--wp-summit)"></div><span class="text-gray-600">정상</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--wp-caution)"></div><span class="text-gray-600">주의구간</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--wp-end)"></div><span class="text-gray-600">하산완료</span></div>
+        <hr class="my-1.5 border-gray-100"/>
+        <div class="legend-item"><div class="legend-dot" style="background: #f97316"></div><span class="text-gray-600">맛집·명소</span></div>
+      </div>
+
+      <!-- 지도 로드 실패 안내 (Kakao API 키 미설정 시) -->
+      <div id="map-fallback" class="hidden absolute inset-0 bg-gray-100 flex flex-col items-center justify-center text-center p-8">
+        <div class="text-5xl mb-4">🗺️</div>
+        <h3 class="text-lg font-bold text-gray-700 mb-2">지도를 불러올 수 없습니다</h3>
+        <p class="text-sm text-gray-500 mb-4">Kakao Maps API 키를 <code class="bg-gray-200 px-1 rounded">course.html</code>에 설정해주세요.</p>
+        <div class="bg-white rounded-xl p-4 text-left text-xs text-gray-600 max-w-sm w-full font-mono border">
+          <span class="text-blue-600">// 코스 경로 (참고용 좌표)</span><br/>
+          <span id="map-fallback-coords" class="text-gray-500">좌표 로딩 중...</span>
+        </div>
+        <a href="https://developers.kakao.com" target="_blank" class="mt-4 text-xs text-blue-500 underline">Kakao Developers에서 API 키 발급하기 →</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 토스트 알림 -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-5 py-3 rounded-full shadow-lg z-50 toast-hidden flex items-center gap-2">
+    <span id="toast-msg">링크가 복사되었습니다!</span>
+  </div>
+
+  <!-- 스크립트 -->
+  <script src="js/bookmark.js?v=5"></script>
+  <script src="js/chart.js?v=5"></script>
+  <script src="js/map.js?v=5"></script>
+  <script src="js/poi.js?v=5"></script>
+
+  <script>
+    // ===== 전역 상태 =====
+    let currentCourse = null;
+    let altitudeChartInstance = null;
+
+    // ===== 페이지 초기화 =====
+    async function initCoursePage() {
+      const params = new URLSearchParams(window.location.search);
+      const courseId = params.get('id');
+
+      if (!courseId) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      try {
+        const res = await fetch('data/courses.json');
+        const courses = await res.json();
+        currentCourse = courses.find(c => c.id === courseId);
+
+        if (!currentCourse) {
+          alert('코스를 찾을 수 없습니다.');
+          window.location.href = 'index.html';
+          return;
+        }
+
+        renderCourseDetail(currentCourse);
+        initMapForCourse(currentCourse);
+        updateBookmarkButtonState(currentCourse.id);
+        // POI 탭 백그라운드에서 미리 로드 (탭 클릭 전에 데이터 준비)
+        initPOITab(currentCourse);
+
+      } catch (err) {
+        console.error('코스 데이터 로드 실패:', err);
+        alert('데이터를 불러오는 중 오류가 발생했습니다.\n로컬 서버(예: Live Server)로 실행해주세요.');
+      }
+    }
+
+    // ===== 코스 상세 렌더링 =====
+    function renderCourseDetail(course) {
+      document.title = `${course.name} — 등산코스 플래너`;
+      document.getElementById('header-title').textContent = course.name;
+
+      // 코스 요약
+      const badge = document.getElementById('ov-difficulty-badge');
+      badge.textContent = course.difficulty;
+      badge.className = `inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mb-2 ${
+        course.difficulty === '초급' ? 'badge-easy' :
+        course.difficulty === '중급' ? 'badge-medium' : 'badge-hard'
+      }`;
+
+      document.getElementById('ov-name').textContent = course.name;
+      document.getElementById('ov-rating').textContent = course.rating != null ? course.rating.toFixed(1) : '-';
+      document.getElementById('ov-rating-count').textContent = course.ratingCount > 0 ? `(${course.ratingCount}명 참여)` : '(아직 후기 없음)';
+      document.getElementById('ov-distance').textContent = `${course.totalDistance}km`;
+      document.getElementById('ov-time').textContent = course.estimatedTime;
+      document.getElementById('ov-altitude').textContent = `${course.maxAltitude.toLocaleString()}m`;
+      document.getElementById('ov-cumulative').textContent = `${course.cumulativeAltitude.toLocaleString()}m`;
+      document.getElementById('ov-region').textContent = course.region;
+
+      // 해시태그
+      document.getElementById('ov-tags').innerHTML = course.tags.map(t =>
+        `<span class="px-2.5 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full border border-green-100">${t}</span>`
+      ).join('');
+
+      // 피트니스 지표 카드
+      renderFitnessCard(course);
+
+      // 고도 프로파일 차트
+      renderAltitudeChart(course);
+
+
+      // 구간상세 탭
+      renderSegments(course);
+
+      // 관련정보 탭
+      renderInfoTab(course);
+
+      // 방문 최고 시즌 (더미 또는 데이터 연동)
+      const seasonMap = {
+        '봄': '🌸 벚꽃과 진달래가 만개하는 봄이 가장 아름답습니다.',
+        '여름': '🌿 시원한 계곡물과 푸른 숲을 즐기기 좋은 여름입니다.',
+        '가을': '🍁 오색 단풍으로 물든 가을 산행의 묘미를 느낄 수 있습니다.',
+        '겨울': '❄️ 눈꽃과 상고대가 절경을 이루는 겨울 명산입니다.'
+      };
+      // course.tags나 별도 필드에서 시즌을 추출할 수 있다면 연동, 없으면 가을로 기본값
+      const season = course.tags && course.tags.some(t => t.includes('단풍')) ? '가을' : '봄, 가을';
+      document.getElementById('info-best-season').textContent = season;
+      document.getElementById('info-season-desc').textContent = season === '가을' ? seasonMap['가을'] : '선선한 날씨와 멋진 풍경을 즐기기 가장 좋은 시기입니다.';
+    }
+
+
+    // ===== 구간상세 탭 렌더링 =====
+    function renderSegments(course) {
+      // 코스 변형 필터 (예시: 전체 / A코스 / 원점회귀)
+      document.getElementById('route-filter').innerHTML = `
+        <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-green-500 text-white">전체 코스</button>
+        <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">왕복 코스</button>
+      `;
+
+      document.getElementById('segment-list').innerHTML = course.waypoints.map((wp, idx) => {
+        const typeLabel = { start:'출발점', waypoint:'경유지', summit:'정상', end:'하산완료', caution:'주의구간' }[wp.type];
+        return `
+          <div class="segment-card" data-wp-idx="${idx}">
+            <div class="segment-card-header" onclick="focusWaypoint(${idx}); this.parentElement.classList.toggle('expanded')">
+              <div class="wp-circle wp-${wp.type} text-xs">${wp.order}</div>
+              <div class="flex-1">
+                <span class="text-xs font-semibold text-gray-500">${typeLabel}</span>
+                <p class="font-semibold text-sm text-gray-900">${wp.name}</p>
+              </div>
+              <span class="text-xs text-gray-500 mr-2">${wp.altitude}m</span>
+              <span class="expand-icon text-lg">⌄</span>
+            </div>
+            <div class="segment-card-body">
+              <img src="${wp.thumbnail}" alt="${wp.name}" class="w-full h-32 object-cover rounded-lg mb-3" onerror="this.style.display='none'" />
+              <p class="text-sm text-gray-600 leading-relaxed mb-3">${wp.description}</p>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="bg-gray-50 rounded-lg p-2">
+                  <p class="text-gray-400 mb-0.5">고도</p>
+                  <p class="font-semibold text-gray-700">${wp.altitude}m</p>
+                </div>
+                ${wp.distanceFromPrev > 0 ? `
+                <div class="bg-gray-50 rounded-lg p-2">
+                  <p class="text-gray-400 mb-0.5">전 지점과의 거리</p>
+                  <p class="font-semibold text-gray-700">${wp.distanceFromPrev}km</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-2 col-span-2">
+                  <p class="text-gray-400 mb-0.5">예상 소요시간</p>
+                  <p class="font-semibold text-gray-700">${wp.timeFromPrev}</p>
+                </div>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ===== 관련정보 탭 렌더링 =====
+    function renderInfoTab(course) {
+      document.getElementById('info-cards').innerHTML = `
+        <div class="info-card">
+          <div class="info-card-title">🚗 주차 정보 <span class="bg-yellow-100 text-yellow-800 text-xs font-bold px-1.5 py-0.5 rounded ml-1">[샘플]</span></div>
+          <p>${course.parking}</p>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">🚌 대중교통</div>
+          <p>${course.transit}</p>
+        </div>
+        <div class="info-card" style="border-color:#fecaca; background:#fff5f5">
+          <div class="info-card-title" style="color:#991b1b">⚠️ 주의사항</div>
+          <p style="color:#7f1d1d">${course.cautions}</p>
+        </div>
+      `;
+
+      document.getElementById('articles-grid').innerHTML = course.relatedArticles.map(a => `
+        <a href="${a.url}" target="_blank" class="article-card block">
+          <img src="${a.thumbnail}" alt="${a.title}" loading="lazy" />
+          <div class="overlay">
+            <p>${a.title}</p>
+          </div>
+          ${a._sample ? '<span class="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded">[샘플]</span>' : ''}
+        </a>
+      `).join('');
+    }
+
+    // ===== 피트니스 지표 카드 렌더링 =====
+    function renderFitnessCard(course) {
+      const card = document.getElementById('fitness-card');
+      if (!card) return;
+
+      const endurance  = course.scoreEndurance  || 0;
+      const joint      = course.scoreJoint      || 0;
+      const foodie     = course.foodieIndex     || 0;
+      const persona    = course.personaType     || '';
+      const bestSeason = course.bestSeason      || '';
+      const courseType = course.courseType      || '';
+
+      const barHtml = (label, value, color) => `
+        <div class="mb-2.5">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-gray-500">${label}</span>
+            <span class="text-xs font-semibold text-gray-700">${Math.round(value)}<span class="text-gray-400">/100</span></span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all" style="width:${Math.min(value,100)}%;background:${color}"></div>
+          </div>
+        </div>`;
+
+      const badges = [
+        courseType ? `<span class="px-2 py-0.5 text-xs rounded-full bg-blue-50 text-blue-700 border border-blue-100">${courseType}</span>` : '',
+        bestSeason ? `<span class="px-2 py-0.5 text-xs rounded-full bg-amber-50 text-amber-700 border border-amber-100">🌟 최고 시즌: ${bestSeason}</span>` : '',
+        persona    ? `<span class="px-2 py-0.5 text-xs rounded-full bg-purple-50 text-purple-700 border border-purple-100">👤 ${persona}</span>` : '',
+      ].filter(Boolean).join('');
+
+      card.innerHTML = `
+        <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">코스 지표</p>
+        ${barHtml('체력 소모', endurance, '#f97316')}
+        ${barHtml('관절 부담', joint,    '#ef4444')}
+        ${barHtml('하산 맛집 지수', foodie, '#16a34a')}
+        ${badges ? `<div class="flex flex-wrap gap-1.5 mt-3">${badges}</div>` : ''}
+      `;
+    }
+
+    // ===== 탭 전환 =====
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+    }
+
+    // ===== 웨이포인트 클릭 → 지도 포커스 =====
+    function focusWaypoint(idx) {
+      // map.js의 panToWaypoint 호출
+      if (typeof panToWaypoint === 'function') panToWaypoint(idx);
+      // 활성 스타일 업데이트
+      document.querySelectorAll('.waypoint-item').forEach(el => el.classList.remove('active-wp'));
+      const target = document.querySelector(`[data-wp-idx="${idx}"]`);
+      if (target) target.classList.add('active-wp');
+    }
+
+    // ===== 북마크 토글 =====
+    function handleBookmarkToggle() {
+      if (!currentCourse) return;
+      toggleBookmark(currentCourse.id);
+      updateBookmarkButtonState(currentCourse.id);
+    }
+
+    function updateBookmarkButtonState(id) {
+      const saved = isBookmarked(id);
+      document.getElementById('btn-bookmark-header').textContent = saved ? '❤️' : '🤍';
+      const saveBtn = document.getElementById('btn-save');
+      if (saveBtn) {
+        saveBtn.textContent = saved ? '❤️ 저장됨' : '📌 코스 저장하기';
+        saveBtn.classList.toggle('saved', saved);
+      }
+    }
+
+    // ===== 공유하기 =====
+    function handleShare() {
+      const url = window.location.href;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => showToast('링크가 복사되었습니다!'));
+      } else {
+        // 구형 브라우저 대응
+        const el = document.createElement('textarea');
+        el.value = url;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        showToast('링크가 복사되었습니다!');
+      }
+    }
+
+    // ===== 토스트 표시 =====
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.classList.remove('toast-hidden');
+      toast.classList.add('toast-show');
+      setTimeout(() => {
+        toast.classList.remove('toast-show');
+        toast.classList.add('toast-hidden');
+      }, 2500);
+    }
+
+    // ===== 별점 UI =====
+    document.querySelectorAll('.star-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const star = parseInt(this.dataset.star);
+        document.querySelectorAll('.star-btn').forEach((b, i) => {
+          b.classList.toggle('text-yellow-400', i < star);
+          b.classList.toggle('text-gray-300', i >= star);
+        });
+      });
+    });
+
+    // ===== 페이지 시작 =====
+    document.addEventListener('DOMContentLoaded', initCoursePage);
+  </script>
+</body>
+</html>

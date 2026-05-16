@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⛰️ 등산코스 플래너</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css" />
+  <script>
+    // Tailwind 커스텀 색상 설정
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' },
+            surface: '#f8fafc',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- 헤더 -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          ⛰️ <span>등산코스 플래너</span>
+        </h1>
+        <p class="text-sm text-gray-500 mt-0.5">나에게 맞는 등산코스를 찾아보세요</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="bookmarks-toggle-btn" class="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+          🔖 <span class="hidden sm:inline">저장된 코스</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 온보딩 매칭 알고리즘 테스트 영역 (개발자 테스트용) -->
+  <div class="bg-blue-50 border-b border-blue-100 py-4 px-4 sm:px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-xl">🤖</span>
+        <h2 class="text-sm font-bold text-blue-900">맞춤 산 추천 매칭 테스트 (개발자 모드)</h2>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+        <select id="user-exp" class="text-sm rounded border border-blue-200 p-2"><option value="처음">경험: 처음/입문</option><option value="중급">경험: 중급</option><option value="고수">경험: 고수</option></select>
+        <select id="user-stam" class="text-sm rounded border border-blue-200 p-2"><option value="여유">체력: 여유롭게</option><option value="보통" selected>체력: 보통</option><option value="강행군">체력: 강행군</option></select>
+        <select id="user-time" class="text-sm rounded border border-blue-200 p-2"><option value="3h">시간: 3시간 이하</option><option value="3-6h" selected>시간: 3~6시간</option><option value="6h+">시간: 6시간 이상</option></select>
+        <select id="user-purp" class="text-sm rounded border border-blue-200 p-2"><option value="풍경">목적: 풍경/인스타</option><option value="운동">목적: 운동/성취감</option></select>
+        <select id="user-reg" class="text-sm rounded border border-blue-200 p-2"><option value="">지역: 무관</option><option value="서울">서울</option><option value="경기">경기</option><option value="강원">강원</option><option value="충남">충남</option><option value="전북">전북</option><option value="경북">경북</option><option value="부산">부산</option></select>
+      </div>
+      <button onclick="runRecommendationTest()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors text-sm">내 취향에 맞는 산 추천받기</button>
+      
+      <!-- 추천 결과 컨테이너 -->
+      <div id="recommendation-results" class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 hidden"></div>
+    </div>
+  </div>
+
+  <!-- 필터 바 -->
+  <div class="bg-white border-b border-gray-200 sticky top-[73px] z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+      <!-- 난이도 필터 -->
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">난이도</span>
+        <div class="flex gap-2 overflow-x-auto filter-scroll pb-0.5">
+          <button class="filter-btn difficulty-btn active px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="전체">전체</button>
+          <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="초급">🟢 초급</button>
+          <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="중급">🟠 중급</button>
+          <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="고급">🔴 고급</button>
+        </div>
+      </div>
+      <!-- 해시태그 필터 -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">태그</span>
+        <div class="flex gap-2 overflow-x-auto filter-scroll pb-0.5">
+          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#초보가능">🟢 #초보가능</button>
+          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#관절보호">🦵 #관절보호</button>
+          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#가벼운발걸음">🚶 #가벼운발걸음</button>
+          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#오운완">🏅 #오운완</button>
+          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#원점회귀">🔄 #원점회귀</button>
+          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#대중교통가능">🚌 #대중교통</button>
+          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#케이블카">🚡 #케이블카</button>
+          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#인생샷">📸 #인생샷</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 콘텐츠 -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <!-- 결과 카운트 -->
+    <div class="flex items-center justify-between mb-4">
+      <p class="text-sm text-gray-600">
+        총 <span id="result-count" class="font-semibold text-gray-900">0</span>개의 코스
+      </p>
+      <div id="active-filters" class="flex gap-2 flex-wrap"></div>
+    </div>
+
+    <!-- 코스 카드 그리드 -->
+    <div id="course-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- JS로 렌더링 -->
+    </div>
+
+    <!-- 검색 결과 없음 -->
+    <div id="no-results" class="hidden flex flex-col items-center justify-center py-24 text-center">
+      <div class="text-6xl mb-4">🏔️</div>
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">조건에 맞는 코스가 없습니다</h3>
+      <p class="text-gray-500 text-sm mb-4">다른 필터를 선택해 보세요</p>
+      <button onclick="resetFilters()" class="px-5 py-2.5 bg-green-500 text-white rounded-full text-sm font-medium hover:bg-green-600 transition-colors">
+        필터 초기화
+      </button>
+    </div>
+
+    <!-- 로딩 스피너 -->
+    <div id="loading" class="flex flex-col items-center justify-center py-24">
+      <div class="loading-spinner mb-4"></div>
+      <p class="text-gray-500 text-sm">코스 정보를 불러오는 중...</p>
+    </div>
+  </main>
+
+  <!-- 북마크 저장 코스 모달 -->
+  <div id="bookmarks-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="closeBookmarksModal()"></div>
+    <div class="absolute right-0 top-0 h-full w-full max-w-sm bg-white shadow-2xl flex flex-col slide-in-right">
+      <div class="flex items-center justify-between px-5 py-4 border-b">
+        <h2 class="text-lg font-bold">🔖 저장된 코스</h2>
+        <button onclick="closeBookmarksModal()" class="p-2 rounded-full hover:bg-gray-100 text-gray-500">✕</button>
+      </div>
+      <div id="bookmarks-list" class="flex-1 overflow-y-auto p-4">
+        <!-- JS로 렌더링 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-5 py-3 rounded-full shadow-lg z-50 toast-hidden flex items-center gap-2">
+    <span id="toast-msg">링크가 복사되었습니다!</span>
+  </div>
+
+  <!-- 스크립트 모듈 -->
+  <script src="js/bookmark.js"></script>
+  <script src="js/recommendation.js"></script>
+  <script src="js/filter.js?v=2"></script>
+  <script>
+    // ===== 온보딩 추천 테스트 함수 =====
+    function runRecommendationTest() {
+      if (!window._allCourses || window._allCourses.length === 0) return;
+      
+      const userProfile = {
+        experience: document.getElementById('user-exp').value,
+        stamina: document.getElementById('user-stam').value,
+        time: document.getElementById('user-time').value,
+        purpose: document.getElementById('user-purp').value,
+        region: document.getElementById('user-reg').value
+      };
+      
+      const recommended = window.getRecommendedCourses(window._allCourses, userProfile, 3);
+      const container = document.getElementById('recommendation-results');
+      
+      container.innerHTML = recommended.map(course => `
+        <a href="course.html?id=${course.id}" class="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden hover:shadow-md transition-shadow flex">
+          <div class="p-4 flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-blue-600 text-xs font-bold px-2 py-0.5 bg-blue-100 rounded-full">매칭도 ${course.matchScore}%</span>
+              <span class="text-xs text-gray-500">${course.region}</span>
+            </div>
+            <h3 class="font-bold text-gray-900">${course.mountain}</h3>
+            <p class="text-xs text-gray-600 line-clamp-1">${course.name}</p>
+          </div>
+        </a>
+      `).join('');
+      container.classList.remove('hidden');
+    }
+
+    // 페이지 초기화
+    document.addEventListener('DOMContentLoaded', () => {
+      initFilterPage();
+    });
+
+    // 북마크 모달 열기
+    document.getElementById('bookmarks-toggle-btn').addEventListener('click', () => {
+      openBookmarksModal();
+    });
+
+    function openBookmarksModal() {
+      const modal = document.getElementById('bookmarks-modal');
+      modal.classList.remove('hidden');
+      renderBookmarksList();
+    }
+
+    function closeBookmarksModal() {
+      document.getElementById('bookmarks-modal').classList.add('hidden');
+    }
+
+    // 저장된 코스 목록 렌더링
+    function renderBookmarksList() {
+      const ids = getAllBookmarks();
+      const list = document.getElementById('bookmarks-list');
+
+      if (ids.length === 0) {
+        list.innerHTML = `
+          <div class="flex flex-col items-center justify-center h-48 text-center">
+            <div class="text-4xl mb-3">📍</div>
+            <p class="text-gray-500 text-sm">저장된 코스가 없습니다.<br/>마음에 드는 코스를 저장해보세요!</p>
+          </div>`;
+        return;
+      }
+
+      // 코스 데이터에서 북마크된 것만 필터링
+      const bookmarked = (window._allCourses || []).filter(c => ids.includes(c.id));
+      list.innerHTML = bookmarked.map(c => `
+        <div class="flex gap-3 p-3 rounded-xl hover:bg-gray-50 border border-gray-100 mb-3 cursor-pointer" onclick="location.href='course.html?id=${c.id}'">
+          <img src="${c.thumbnail}" alt="${c.name}" class="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold text-sm text-gray-900 truncate">${c.name}</p>
+            <p class="text-xs text-gray-500 mt-0.5">${c.region}</p>
+            <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${getDifficultyClass(c.difficulty)}">${c.difficulty}</span>
+          </div>
+          <button onclick="event.stopPropagation(); toggleBookmark('${c.id}'); renderBookmarksList();" class="text-red-400 hover:text-red-600 text-lg flex-shrink-0">🗑️</button>
+        </div>`).join('');
+    }
+
+    function getDifficultyClass(d) {
+      return d === '초급' ? 'bg-green-100 text-green-700' :
+             d === '중급' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700';
+    }
+
+    function resetFilters() {
+      window._selectedDifficulty = '전체';
+      window._selectedTags = [];
+      document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('[data-difficulty="전체"]').classList.add('active');
+      document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+      applyFilters();
+    }
+  </script>
+</body>
+</html>
