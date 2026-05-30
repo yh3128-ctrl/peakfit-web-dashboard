@@ -206,41 +206,10 @@
     <!-- 섹션 구분선 -->
     <div class="section-divider-bar max-w-4xl mx-auto px-4">전체 코스 탐색</div>
 
-    <!-- 필터 바 -->
-    <div class="bg-white border-b border-gray-200 sticky z-30" style="top:var(--header-height)">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3">
-        <div class="flex items-center gap-2 mb-3">
-          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">난이도</span>
-          <div class="flex gap-2 overflow-x-auto filter-scroll pb-0.5">
-            <button class="filter-btn difficulty-btn active px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="전체">전체</button>
-            <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="초급">🟢 초급</button>
-            <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="중급">🟠 중급</button>
-            <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="고급">🔴 고급</button>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">태그</span>
-          <div class="flex gap-2 overflow-x-auto filter-scroll pb-0.5">
-            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#초보가능">🟢 #초보가능</button>
-            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#관절보호">🦵 #관절보호</button>
-            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#가벼운발걸음">🚶 #가벼운발걸음</button>
-            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#오운완">🏅 #오운완</button>
-            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#원점회귀">🔄 #원점회귀</button>
-            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#대중교통가능">🚌 #대중교통</button>
-            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#케이블카">🚡 #케이블카</button>
-            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#인생샷">📸 #인생샷</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- 코스 그리드 -->
     <main class="max-w-4xl mx-auto px-4 sm:px-6 py-6">
-      <div class="flex items-center justify-between mb-4">
-        <p class="text-sm text-gray-600">
-          총 <span id="result-count" class="font-semibold text-gray-900">0</span>개의 코스
-        </p>
-        <div id="active-filters" class="flex gap-2 flex-wrap"></div>
+      <div class="mb-4">
+        <p class="text-sm text-gray-500">총 <span id="result-count" class="font-semibold" style="color:var(--forest)">0</span>개의 코스</p>
       </div>
 
       <div id="course-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
@@ -388,26 +357,57 @@
       }).join('');
     }
 
-    // ── CTA 클릭 → Screen B 전환 ──────────────────────────────
-    function runOnboarding() {
-      if (!window._allCourses || window._allCourses.length === 0) {
-        alert('코스 데이터를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
-        return;
-      }
+    // ── Screen B 전환 공통 함수 ───────────────────────────────
+    function showResults() {
       const userProfile = buildUserProfile();
       const top3 = window.getRecommendedCourses(window._allCourses, userProfile, 3);
-
       renderRecommendationCards(top3);
       document.getElementById('profile-summary').textContent = buildSummaryText();
-
       document.getElementById('screen-onboarding').classList.add('hidden');
       document.getElementById('screen-results').classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setStep(2);
     }
 
+    // ── CTA 클릭 → Screen B 전환 ──────────────────────────────
+    function runOnboarding() {
+      if (!window._allCourses || window._allCourses.length === 0) {
+        alert('코스 데이터를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      // 뒤로가기 복원을 위해 선택 상태 저장
+      const saved = {};
+      ['fitness','companion','purpose','season','duration','transport'].forEach(g => {
+        saved[g] = getSelected(g);
+      });
+      sessionStorage.setItem('pf_screen', 'results');
+      sessionStorage.setItem('pf_selections', JSON.stringify(saved));
+
+      showResults();
+    }
+
+    // ── 뒤로가기 후 Screen B 복원 ─────────────────────────────
+    function restoreFromSession() {
+      if (sessionStorage.getItem('pf_screen') !== 'results') return;
+      if (!window._allCourses || !window._allCourses.length) return;
+
+      try {
+        const saved = JSON.parse(sessionStorage.getItem('pf_selections') || '{}');
+        Object.entries(saved).forEach(([group, value]) => {
+          if (!value) return;
+          document.querySelectorAll(`.ob-btn[data-group="${group}"]`).forEach(b => {
+            b.classList.toggle('selected', b.dataset.value === value);
+          });
+        });
+      } catch (e) {}
+
+      showResults();
+    }
+
     // ── 다시 추천받기 → Screen A 복귀 ─────────────────────────
     function goToOnboarding() {
+      sessionStorage.removeItem('pf_screen');
+      sessionStorage.removeItem('pf_selections');
       document.getElementById('screen-results').classList.add('hidden');
       document.getElementById('screen-onboarding').classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -416,7 +416,10 @@
 
     // ── 페이지 초기화 ─────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
-      initFilterPage();   // courses.json 백그라운드 로드 시작
+      // 데이터 로드 후 뒤로가기 복원 확인
+      initFilterPage().then(() => {
+        restoreFromSession();
+      }).catch(() => {});
 
       document.getElementById('bookmarks-toggle-btn').addEventListener('click', () => {
         openBookmarksModal();
