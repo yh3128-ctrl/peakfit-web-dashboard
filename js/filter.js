@@ -16,7 +16,7 @@ window._allCourses = [];   // 전체 코스 캐시 (북마크 모달에서도 �
  */
 async function initFilterPage() {
   try {
-    const res = await fetch('data/courses.json');
+    const res = await fetch('data/courses.json?v=20260530');
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.url}`);
     window._allCourses = await res.json();
 
