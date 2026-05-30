@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PeakFit — 지도 탐색</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script>
+    tailwind = { config: {
+      theme: { extend: { colors: {
+        forest:  { DEFAULT: '#1B4332', dark: '#0F2B1F', light: '#3D7A56' },
+        beige:   { DEFAULT: '#F5F0E6', dark: '#EDE6D8' },
+        crimson: { DEFAULT: '#C84B2F', dark: '#A83B22' },
+      }}}
+    }}
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="css/style.css?v=20260530" />
+  <style>
+    html, body { height: 100%; margin: 0; }
+
+    /* 헤더 */
+    #site-header { height: var(--header-height); }
+
+    /* 지도 스플릿 */
+    #map-container {
+      display: flex;
+      height: calc(100dvh - var(--header-height));
+    }
+
+    /* 좌측 패널 */
+    #map-sidebar {
+      width: 360px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--beige);
+      border-right: 1px solid var(--beige-dark);
+      overflow: hidden;
+    }
+
+    /* 필터 버튼 바 */
+    #persona-filters {
+      padding: 12px 14px;
+      background: white;
+      border-bottom: 1px solid var(--beige-dark);
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .pf-btn {
+      flex: 1;
+      min-width: calc(50% - 3px);
+      padding: 8px 4px;
+      border-radius: 10px;
+      border: 1.5px solid var(--beige-dark);
+      background: var(--beige);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .pf-btn:hover { border-color: var(--forest-light); }
+    .pf-btn.active { color: white; border-color: transparent; }
+    .pf-btn.all.active    { background: var(--forest); }
+    .pf-btn.typeA.active  { background: #22c55e; }
+    .pf-btn.typeB.active  { background: var(--crimson); }
+    .pf-btn.typeC.active  { background: #3b82f6; }
+
+    /* 산 목록 */
+    #mountain-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    #mountain-list::-webkit-scrollbar { width: 4px; }
+    #mountain-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+    /* 산 카드 */
+    .mt-card {
+      background: white;
+      border-radius: 14px;
+      border: 1.5px solid var(--beige-dark);
+      overflow: hidden;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: box-shadow 0.18s, border-color 0.18s;
+    }
+    .mt-card:hover { box-shadow: 0 4px 16px rgba(27,67,50,0.12); border-color: var(--forest-light); }
+    .mt-card.highlighted { border-color: var(--forest); box-shadow: 0 0 0 3px rgba(27,67,50,0.15); }
+
+    .mt-card-img {
+      width: 100%; height: 100px;
+      object-fit: cover;
+      display: block;
+      background: var(--beige-dark);
+    }
+    .mt-card-body { padding: 12px; }
+    .mt-card-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .mt-card-region { font-size: 11px; color: #6b7280; }
+    .mt-card-diff { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 20px; }
+    .mt-card-name { font-size: 16px; font-weight: 900; margin-bottom: 3px; color: var(--forest); }
+    .mt-card-stats { font-size: 12px; color: #374151; display: flex; gap: 10px; margin-bottom: 8px; }
+    .mt-persona-tag {
+      display: inline-block;
+      font-size: 11px; font-weight: 700;
+      padding: 3px 9px; border-radius: 20px; margin-bottom: 8px;
+    }
+    .tag-A { background: #dcfce7; color: #166534; }
+    .tag-B { background: #fee2e2; color: #991b1b; }
+    .tag-C { background: #dbeafe; color: #1e40af; }
+
+    .mt-card-btn {
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      background: var(--forest);
+      color: white;
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .mt-card-btn:hover { background: var(--forest-dark); }
+
+    /* 우측 지도 */
+    #leaflet-map {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Leaflet 팝업 커스텀 */
+    .popup-name  { font-size: 15px; font-weight: 900; color: var(--forest); margin: 0 0 4px; }
+    .popup-sub   { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+    .popup-stats { font-size: 12px; display: flex; gap: 10px; margin-bottom: 10px; }
+    .popup-tag   { display: inline-block; font-size: 11px; font-weight: 700;
+                   padding: 2px 8px; border-radius: 20px; margin-bottom: 8px; }
+    .popup-btn {
+      display: block; width: 100%; padding: 8px;
+      background: var(--crimson); color: white;
+      font-size: 13px; font-weight: 700;
+      border-radius: 8px; border: none;
+      cursor: pointer; text-align: center;
+      text-decoration: none;
+    }
+    .popup-btn:hover { background: var(--crimson-dark); }
+
+    /* 빈 상태 */
+    #empty-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 200px; color: #9ca3af; font-size: 13px;
+    }
+
+    /* 모바일: 세로 레이아웃 */
+    @media (max-width: 767px) {
+      #map-container { flex-direction: column; height: auto; }
+      #map-sidebar { width: 100%; height: auto; }
+      #leaflet-map { height: 50vh; }
+    }
+  </style>
+</head>
+<body class="min-h-screen" style="background:var(--beige)">
+
+  <!-- 헤더 -->
+  <header id="site-header" class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-full px-4 sm:px-6 h-full flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="flex items-center gap-1.5 text-sm font-semibold transition-colors"
+           style="color:var(--forest)">← 추천으로</a>
+        <span class="text-gray-200">|</span>
+        <div class="flex items-baseline gap-2">
+          <span class="text-lg font-black tracking-tight" style="color:var(--forest)">PeakFit</span>
+          <span class="hidden sm:inline text-xs font-semibold text-gray-400">100대 명산 코스 큐레이션</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1 select-none text-xs font-bold">
+        <span class="text-gray-300">① 목적</span>
+        <span class="text-gray-200 mx-1">→</span>
+        <span class="text-gray-300">② 추천</span>
+        <span class="text-gray-200 mx-1">→</span>
+        <span style="color:var(--forest)">③ 코스 지도</span>
+      </div>
+
+      <div class="text-sm text-gray-400 font-medium hidden sm:block">
+        <span id="visible-count">0</span>개 코스 표시 중
+      </div>
+    </div>
+  </header>
+
+  <!-- 지도 메인 레이아웃 -->
+  <div id="map-container">
+
+    <!-- 좌측 패널: 필터 + 산 목록 -->
+    <aside id="map-sidebar">
+
+      <!-- 페르소나 필터 -->
+      <div id="persona-filters">
+        <button class="pf-btn all active" data-filter="all" onclick="setFilter('all', this)">
+          🏔️ 전체
+        </button>
+        <button class="pf-btn typeA" data-filter="A" onclick="setFilter('A', this)">
+          🟢 산책·인스타
+        </button>
+        <button class="pf-btn typeB" data-filter="B" onclick="setFilter('B', this)">
+          🔴 성취감·운동
+        </button>
+        <button class="pf-btn typeC" data-filter="C" onclick="setFilter('C', this)">
+          🔵 풍경·장거리
+        </button>
+      </div>
+
+      <!-- 산 목록 -->
+      <div id="mountain-list">
+        <div id="empty-state" class="hidden">
+          <div class="text-4xl mb-3">🏔️</div>
+          <p>해당 유형의 코스가 없습니다</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 우측: Leaflet 지도 -->
+    <div id="leaflet-map"></div>
+
+  </div>
+
+
+  <script>
+    // ── 색상 & 페르소나 헬퍼 ───────────────────────────────────
+    const PERSONA = {
+      A: { color: '#22c55e', label: '산책·인스타', tagClass: 'tag-A' },
+      B: { color: '#C84B2F', label: '성취감·운동', tagClass: 'tag-B' },
+      C: { color: '#3b82f6', label: '풍경·장거리', tagClass: 'tag-C' },
+    };
+
+    function getPersonaKey(personaType) {
+      if (!personaType) return 'A';
+      if (personaType.includes('A')) return 'A';
+      if (personaType.includes('B')) return 'B';
+      if (personaType.includes('C')) return 'C';
+      return 'A';
+    }
+
+    function getMapCoords(course) {
+      const wps = course.waypoints || [];
+      const types = ['summit', 'end', 'start', 'waypoint'];
+      for (const t of types) {
+        const wp = wps.find(w => w.type === t);
+        if (wp && wp.lat && wp.lng) return [wp.lat, wp.lng];
+      }
+      return null;
+    }
+
+    function getDiffClass(d) {
+      return d === '초급' ? 'badge-easy' : d === '중급' ? 'badge-medium' : 'badge-hard';
+    }
+
+    // ── Leaflet 지도 초기화 ───────────────────────────────────
+    const map = L.map('leaflet-map', {
+      center: [36.5, 127.8],
+      zoom: 7,
+      zoomControl: true,
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 19,
+    }).addTo(map);
+
+    // ── 상태 ─────────────────────────────────────────────────
+    let allCourses  = [];
+    let activeFilter = 'all';
+    let markers     = {};   // id → leaflet marker
+    let activeCard  = null; // 현재 하이라이트된 카드 element
+
+    // ── 마커 생성 함수 ────────────────────────────────────────
+    function createMarker(course, coords, color) {
+      const pk = getPersonaKey(course.personaType);
+      const p  = PERSONA[pk];
+      const dist = course.totalDistance ? course.totalDistance.toFixed(1) + 'km' : '—';
+      const gain = course.cumulativeAltitude ? '+' + Math.round(course.cumulativeAltitude) + 'm' : '—';
+
+      const marker = L.circleMarker(coords, {
+        radius:      9,
+        color:       'white',
+        weight:      2,
+        fillColor:   color,
+        fillOpacity: 0.9,
+      }).addTo(map);
+
+      const popupHtml = `
+        <div style="min-width:180px;font-family:'Noto Sans KR',sans-serif">
+          <p class="popup-name">${course.mountain}</p>
+          <p class="popup-sub">${course.region || ''} · ${course.name || ''}</p>
+          <span class="popup-tag ${p.tagClass}">${p.label}</span>
+          <div class="popup-stats">
+            <span>📏 ${dist}</span>
+            <span>⛰️ ${gain}</span>
+          </div>
+          <a href="course.html?id=${course.id}" class="popup-btn">코스 상세 보기 →</a>
+        </div>`;
+
+      marker.bindPopup(popupHtml, { maxWidth: 240, minWidth: 200 });
+
+      marker.on('click', () => {
+        highlightCard(course.id);
+        scrollToCard(course.id);
+      });
+
+      return marker;
+    }
+
+    // ── 산 목록 카드 렌더링 ────────────────────────────────────
+    function renderList(courses) {
+      const list  = document.getElementById('mountain-list');
+      const empty = document.getElementById('empty-state');
+      document.getElementById('visible-count').textContent = courses.length;
+
+      // 기존 카드 제거 (empty-state 제외)
+      [...list.children].forEach(c => { if (c.id !== 'empty-state') c.remove(); });
+
+      if (!courses.length) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      courses.forEach(course => {
+        const pk   = getPersonaKey(course.personaType);
+        const p    = PERSONA[pk];
+        const dist = course.totalDistance ? course.totalDistance.toFixed(1) + 'km' : '—';
+        const gain = course.cumulativeAltitude ? '+' + Math.round(course.cumulativeAltitude) + 'm' : '—';
+
+        const card = document.createElement('div');
+        card.className = 'mt-card';
+        card.dataset.id = course.id;
+        card.innerHTML = `
+          <img class="mt-card-img" src="${course.thumbnail || ''}"
+               alt="${course.mountain}"
+               onerror="this.style.display='none'">
+          <div class="mt-card-body">
+            <div class="mt-card-meta">
+              <span class="mt-card-region">${course.region || ''}</span>
+              <span class="mt-card-diff ${getDiffClass(course.difficulty)}">${course.difficulty || ''}</span>
+            </div>
+            <div class="mt-card-name">${course.mountain}</div>
+            <span class="mt-persona-tag ${p.tagClass}">${p.label}</span>
+            <div class="mt-card-stats">
+              <span>📏 ${dist}</span>
+              <span>⛰️ ${gain}</span>
+            </div>
+            <button class="mt-card-btn" onclick="goToCourse('${course.id}')">
+              코스 상세 보기 →
+            </button>
+          </div>`;
+
+        // 카드 클릭 → 지도 포커스 + 팝업
+        card.addEventListener('click', (e) => {
+          if (e.target.classList.contains('mt-card-btn')) return;
+          flyToMarker(course.id);
+        });
+
+        list.appendChild(card);
+      });
+    }
+
+    // ── 마커 보이기/숨기기 ────────────────────────────────────
+    function updateMarkers(courses) {
+      const visibleIds = new Set(courses.map(c => c.id));
+      Object.entries(markers).forEach(([id, marker]) => {
+        if (visibleIds.has(id)) {
+          if (!map.hasLayer(marker)) marker.addTo(map);
+        } else {
+          if (map.hasLayer(marker)) marker.remove();
+        }
+      });
+    }
+
+    // ── 필터 적용 ─────────────────────────────────────────────
+    function applyFilter() {
+      let filtered = allCourses;
+      if (activeFilter !== 'all') {
+        filtered = allCourses.filter(c => getPersonaKey(c.personaType) === activeFilter);
+      }
+      renderList(filtered);
+      updateMarkers(filtered);
+
+      // 필터 결과가 있으면 지도 뷰 맞추기
+      if (filtered.length > 0) {
+        const coords = filtered
+          .map(c => getMapCoords(c))
+          .filter(Boolean);
+        if (coords.length > 0) {
+          map.fitBounds(L.latLngBounds(coords), { padding: [40, 40], maxZoom: 10 });
+        }
+      }
+    }
+
+    // ── 필터 버튼 클릭 ────────────────────────────────────────
+    function setFilter(key, btn) {
+      activeFilter = key;
+      document.querySelectorAll('.pf-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilter();
+    }
+
+    // ── 카드 하이라이트 ───────────────────────────────────────
+    function highlightCard(id) {
+      if (activeCard) activeCard.classList.remove('highlighted');
+      const card = document.querySelector(`.mt-card[data-id="${id}"]`);
+      if (card) {
+        card.classList.add('highlighted');
+        activeCard = card;
+      }
+    }
+
+    function scrollToCard(id) {
+      const card = document.querySelector(`.mt-card[data-id="${id}"]`);
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // ── 지도 포커스 ───────────────────────────────────────────
+    function flyToMarker(id) {
+      const marker = markers[id];
+      if (!marker) return;
+      const latlng = marker.getLatLng();
+      map.flyTo(latlng, 12, { duration: 0.8 });
+      setTimeout(() => marker.openPopup(), 850);
+      highlightCard(id);
+    }
+
+    // ── 코스 이동 ─────────────────────────────────────────────
+    function goToCourse(id) {
+      location.href = `course.html?id=${id}`;
+    }
+
+    // ── 데이터 로드 + 초기화 ──────────────────────────────────
+    fetch('data/courses.json?v=20260530')
+      .then(r => r.json())
+      .then(data => {
+        allCourses = data;
+
+        // 마커 생성
+        data.forEach(course => {
+          const coords = getMapCoords(course);
+          if (!coords) return;
+          const pk     = getPersonaKey(course.personaType);
+          const color  = PERSONA[pk].color;
+          markers[course.id] = createMarker(course, coords, color);
+        });
+
+        // 초기 렌더링
+        applyFilter();
+      })
+      .catch(err => console.error('courses.json 로드 실패:', err));
+  </script>
+</body>
+</html>

@@ -196,7 +196,14 @@
     <!-- Top 3 추천 -->
     <div class="py-8 px-4" style="background:var(--beige-dark)">
       <div class="max-w-4xl mx-auto">
-        <h2 class="text-base font-black mb-4" style="color:var(--forest)">내 맞춤 추천 코스 Top 3</h2>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-black" style="color:var(--forest)">내 맞춤 추천 코스 Top 3</h2>
+          <a href="map.html"
+             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white transition-colors"
+             style="background:var(--forest)">
+            🗺️ 지도로 탐색
+          </a>
+        </div>
         <div id="recommendation-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <!-- JS 렌더링 -->
         </div>
