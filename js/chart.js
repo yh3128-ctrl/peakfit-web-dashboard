@@ -1,82 +1,146 @@
 /**
- * chart.js — Chart.js 기반 고도 프로파일 차트 렌더링
+ * chart.js — 페르소나 적합도 레이더 차트
  *
- * course.html의 renderAltitudeChart()에서 호출됩니다.
+ * renderAltitudeChart(course) 를 호출하면 6축 레이더 차트를 그립니다.
+ * 축: 난이도 / 코스거리 / 조망 / 맛집연계 / 대중교통 / 케이블카·편의
  */
 
-/**
- * 고도 프로파일 라인 차트를 생성합니다.
- *
- * @param {Object} course - courses.json 코스 객체
- */
+// ── 페르소나 이상값 (0~100) ────────────────────────────────
+const PERSONA_IDEAL = {
+  A: [20, 30, 75, 65, 85, 65],   // 산책·인스타: 쉽고 짧게, 경치+맛집+교통 중시
+  B: [80, 70, 55, 40, 45, 20],   // 성취감·운동: 높은 난이도+거리, 편의 낮음
+  C: [55, 80, 90, 60, 55, 70],   // 풍경·장거리: 장거리+조망+케이블카 중시
+};
+
+const AXES = ['난이도', '코스 거리', '조망', '맛집 연계', '대중교통', '케이블카·편의'];
+
+// ── 코스 실제값 계산 ──────────────────────────────────────
+function calcCourseValues(course) {
+  const tags    = course.tags || [];
+  const hasTag  = (t) => tags.some(tag => tag.includes(t));
+
+  // 1. 난이도: scoreEndurance (0~100)
+  const difficulty = Math.round(course.scoreEndurance || 0);
+
+  // 2. 코스 거리: 총 거리 km → 25km = 100점
+  const dist = Math.min(Math.round((course.totalDistance || 0) / 25 * 100), 100);
+
+  // 3. 조망: 태그 기반
+  let view = 45;
+  if (hasTag('인생샷'))   view = 85;
+  else if (hasTag('케이블카'))  view = 72;
+  else if (hasTag('초보가능')) view = 40;
+
+  // 4. 맛집 연계: foodieIndex (재계산된 값 사용)
+  const foodie = Math.round(course.foodieIndex || 0);
+
+  // 5. 대중교통: 태그 기반
+  const transit = hasTag('대중교통') ? 85 : 25;
+
+  // 6. 케이블카·편의: 태그 기반
+  let cable = 20;
+  if (hasTag('케이블카'))  cable = 90;
+  else if (hasTag('초보가능')) cable = 45;
+
+  return [difficulty, dist, view, foodie, transit, cable];
+}
+
+// ── 적합도 % 계산 ─────────────────────────────────────────
+function calcCompatibility(actual, ideal) {
+  const diffs = actual.map((v, i) => Math.abs(v - ideal[i]));
+  const avgDiff = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+  return Math.max(0, Math.round(100 - avgDiff * 0.85));
+}
+
+// ── 페르소나 타입 추출 ────────────────────────────────────
+function getPersonaKey(personaType) {
+  if (!personaType) return 'A';
+  if (personaType.includes('B')) return 'B';
+  if (personaType.includes('C')) return 'C';
+  return 'A';
+}
+
+// ── 메인: 레이더 차트 렌더링 ─────────────────────────────
 function renderAltitudeChart(course) {
   const canvas = document.getElementById('altitude-chart');
   if (!canvas) return;
 
-  // 기존 차트가 있으면 파괴 후 재생성 (탭 전환 시 중복 생성 방지)
   if (window._altitudeChart) {
     window._altitudeChart.destroy();
+    window._altitudeChart = null;
   }
 
-  const waypoints = course.waypoints;
-  const labels  = waypoints.map(wp => wp.name);
-  const altitudes = course.altitudeProfile;
+  const pk      = getPersonaKey(course.personaType);
+  const ideal   = PERSONA_IDEAL[pk];
+  const actual  = calcCourseValues(course);
+  const compat  = calcCompatibility(actual, ideal);
 
-  // 고도 범위 계산 — y축 여백을 위해 min/max 조정
-  const minAlt = Math.min(...altitudes);
-  const maxAlt = Math.max(...altitudes);
-  const padding = (maxAlt - minAlt) * 0.15;
+  // 헤더 업데이트
+  const headerEl = document.getElementById('radar-header');
+  const compatEl = document.getElementById('radar-compat');
+  const subEl    = document.getElementById('radar-sub');
+  if (headerEl) headerEl.textContent = `페르소나 ↔ ${course.mountain} 적합도`;
+  if (compatEl) compatEl.textContent = `적합도 ${compat}%`;
+  if (subEl)    subEl.textContent    = '두 도형이 포개질수록 적합';
 
-  // 그라데이션 채우기 — 산 테마 푸른빛
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.offsetHeight || 160);
-  gradient.addColorStop(0, 'rgba(59, 130, 246, 0.35)');
-  gradient.addColorStop(1, 'rgba(59, 130, 246, 0.03)');
+  // 배지 색상
+  const badgeEl = document.getElementById('radar-compat');
+  if (badgeEl) {
+    badgeEl.style.background =
+      compat >= 80 ? 'var(--forest)' :
+      compat >= 60 ? '#f59e0b' : 'var(--crimson)';
+  }
+
+  const forestGreen = getComputedStyle(document.documentElement)
+    .getPropertyValue('--forest').trim() || '#1B4332';
 
   window._altitudeChart = new Chart(canvas, {
-    type: 'line',
+    type: 'radar',
     data: {
-      labels: labels,
-      datasets: [{
-        label: '고도 (m)',
-        data: altitudes,
-        borderColor: '#3b82f6',
-        borderWidth: 2.5,
-        backgroundColor: gradient,
-        fill: true,
-        tension: 0.35,           // 부드러운 곡선
-        pointBackgroundColor: waypoints.map(wp => {
-          // 웨이포인트 타입별 포인트 색상
-          const colors = { start:'#22c55e', waypoint:'#3b82f6', summit:'#ef4444', end:'#6b7280', caution:'#f59e0b' };
-          return colors[wp.type] || '#3b82f6';
-        }),
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        pointBorderColor: 'white',
-        pointBorderWidth: 2,
-      }],
+      labels: AXES,
+      datasets: [
+        {
+          label: '페르소나 이상',
+          data: ideal,
+          borderColor: 'rgba(27,67,50,0.4)',
+          borderDash: [5, 4],
+          borderWidth: 1.5,
+          backgroundColor: 'rgba(27,67,50,0.06)',
+          pointRadius: 3,
+          pointBackgroundColor: 'rgba(27,67,50,0.4)',
+        },
+        {
+          label: `${course.mountain} 실제`,
+          data: actual,
+          borderColor: forestGreen,
+          borderWidth: 2.5,
+          backgroundColor: 'rgba(27,67,50,0.18)',
+          pointRadius: 4,
+          pointBackgroundColor: forestGreen,
+          pointBorderColor: 'white',
+          pointBorderWidth: 1.5,
+        },
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
       plugins: {
-        legend: { display: false },
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { size: 11 },
+            color: '#6b7280',
+            padding: 12,
+            usePointStyle: true,
+            pointStyleWidth: 16,
+          },
+        },
         tooltip: {
           callbacks: {
-            title: (items) => items[0].label,
-            label: (item) => ` 고도: ${item.parsed.y.toLocaleString()}m`,
-            // 웨이포인트 타입 표시
-            afterLabel: (item) => {
-              const wp = waypoints[item.dataIndex];
-              const labels = { start:'출발점', waypoint:'경유지', summit:'정상', end:'하산완료', caution:'주의구간' };
-              return ` ${labels[wp.type] || ''}`;
-            },
+            label: (item) => ` ${item.dataset.label}: ${item.parsed.r}점`,
           },
-          backgroundColor: 'rgba(17, 24, 39, 0.9)',
+          backgroundColor: 'rgba(17,24,39,0.88)',
           titleColor: '#f9fafb',
           bodyColor: '#d1d5db',
           cornerRadius: 10,
@@ -84,28 +148,19 @@ function renderAltitudeChart(course) {
         },
       },
       scales: {
-        x: {
-          grid: { display: false },
+        r: {
+          min: 0,
+          max: 100,
           ticks: {
-            font: { size: 10 },
-            color: '#9ca3af',
-            maxRotation: 30,
-            // 레이블이 길면 축약 (10자 초과 시 '...' 처리)
-            callback: function(val, idx) {
-              const label = this.getLabelForValue(val);
-              return label.length > 8 ? label.substring(0, 7) + '…' : label;
-            },
+            count: 5,
+            display: false,
           },
-        },
-        y: {
-          min: Math.max(0, minAlt - padding),
-          max: maxAlt + padding,
-          grid: { color: 'rgba(0,0,0,0.05)' },
-          ticks: {
-            font: { size: 10 },
-            color: '#9ca3af',
-            callback: (val) => `${val}m`,
+          pointLabels: {
+            font: { size: 11, weight: '600' },
+            color: '#374151',
           },
+          grid: { color: 'rgba(0,0,0,0.08)' },
+          angleLines: { color: 'rgba(0,0,0,0.1)' },
         },
       },
     },

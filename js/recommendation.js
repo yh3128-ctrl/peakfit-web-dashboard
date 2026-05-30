@@ -65,19 +65,26 @@ function calculateMatchScore(course, userProfile) {
   }
   score += timeScore;
 
-  // 4. 목적 (Persona_Type) - Max 20pts
+  // 4. 목적 (Persona_Type / foodieIndex) - Max 20pts
   let purpScore = 0;
-  const persona = course.personaType || '';
+  const persona  = course.personaType || '';
   const userPurp = userProfile.purpose;
-  
+
   if (userPurp === '풍경') {
       if (persona.includes('A') || persona.includes('C')) purpScore = 20;
       else purpScore = 10;
   } else if (userPurp === '운동') {
       if (persona.includes('B')) purpScore = 20;
       else purpScore = 10;
+  } else if (userPurp === '맛집') {
+      // 맛집 목적: foodieIndex 기반 점수 (POI_Master 기준 재계산된 값)
+      const foodie = course.foodieIndex || 0;
+      if      (foodie >= 70) purpScore = 20;
+      else if (foodie >= 45) purpScore = 16;
+      else if (foodie >= 25) purpScore = 11;
+      else                   purpScore = 4;
   } else {
-      purpScore = 15; // 기본값
+      purpScore = 15;
   }
   score += purpScore;
 
