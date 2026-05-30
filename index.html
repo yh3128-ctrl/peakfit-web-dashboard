@@ -4,10 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PeakFit — 100대 명산 코스 큐레이션</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="css/style.css" />
+  <!-- tailwind.config을 CDN 로드 전에 선언해야 커스텀 컬러가 인식됨 -->
   <script>
-    tailwind.config = {
+    tailwind = { config: {
       theme: {
         extend: {
           colors: {
@@ -17,8 +16,11 @@
           }
         }
       }
-    }
+    }}
   </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- ?v= 파라미터로 CDN 캐시 우회 -->
+  <link rel="stylesheet" href="css/style.css?v=20260530" />
 </head>
 <body class="min-h-screen">
 
