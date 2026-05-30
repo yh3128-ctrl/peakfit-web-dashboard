@@ -211,7 +211,10 @@ function buildCourseCard(course) {
         <a
           href="course.html?id=${course.id}"
           onclick="event.stopPropagation()"
-          class="block w-full text-center py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-xl transition-colors"
+          class="block w-full text-center py-2.5 text-white text-sm font-semibold rounded-xl transition-colors"
+          style="background:var(--forest)"
+          onmouseover="this.style.background='var(--forest-dark)'"
+          onmouseout="this.style.background='var(--forest)'"
         >코스 보기 →</a>
       </div>
     </article>
