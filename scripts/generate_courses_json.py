@@ -13,6 +13,7 @@ import json
 import math
 import sys
 import os
+import re
 import xml.etree.ElementTree as ET
 
 sys.stdout.reconfigure(encoding='utf-8')
@@ -22,52 +23,103 @@ GPX_BASE = os.path.join(os.path.dirname(__file__), '..', '..', 'tracking-pjt', '
 OUT_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'courses.json')
 
 TARGET_FILES = [
-    # 서울/경기 근교
+    # ── 기존 8개 ──────────────────────────────────────────────
     '북한산_0000000031.gpx',
     '관악산_0000000001.gpx',
-    '도봉산_0000000008.gpx',   # 출발 86m -> 정상 733m -> 하산 150m (정상적인 코스 데이터)
-    '계룡산_0000000002.gpx',   # 원점회귀 8.55km  POI 53개
-    '내장산_0000000001.gpx',   # 케이블카 코스 POI 27개
-    '주왕산_0000000001.gpx',   # 기암 계곡 POI 44개
-    '금정산_0000000001.gpx',   # 부산 케이블카 POI 159개
-    # 설악산: 008이 실제 하산 완료 (끝=348m, 005는 387m에서 중단)
+    '도봉산_0000000008.gpx',
+    '계룡산_0000000002.gpx',
+    '내장산_0000000001.gpx',
+    '주왕산_0000000001.gpx',
+    '금정산_0000000001.gpx',
     '설악산_0000000008.gpx',
+
+    # ── 유형 B (성취감·운동) 10개 ────────────────────────────
+    '삼악산_0000000003.gpx',   # 강원 춘천, POI 35개
+    '유명산_0000000003.gpx',   # 경기 가평, POI 19개
+    '지리산_0000000005.gpx',   # 전북·경남, POI 18개
+    '공작산_0000000005.gpx',   # 강원 홍천, POI 17개
+    '비슬산_0000000002.gpx',   # 대구 달성, POI 15개
+    '칠갑산_0000000002.gpx',   # 충남 청양, POI 14개
+    '재약산_0000000009.gpx',   # 경남 밀양, POI 14개
+    '마니산_0000000001.gpx',   # 인천 강화, POI 11개
+    '속리산_0000000001.gpx',   # 충북 보은, POI 10개
+    '변산_0000000003.gpx',     # 전북 부안, POI 10개
+
+    # ── 유형 C (풍경·장거리) 9개 ─────────────────────────────
+    '금오산_0000000014.gpx',        # 경북 구미, POI 92개
+    '무등산_0000000031.gpx',        # 광주,    POI 91개
+    '팔공산_0000000020.gpx',        # 대구,    POI 81개
+    '신불산_0000000014.gpx',        # 울산,    POI 70개
+    '백운산(광양)_0000000007.gpx',  # 전남 광양, POI 45개
+    '가지산_0000000004.gpx',        # 경남,    POI 39개
+    '용문산_0000000004.gpx',        # 경기 양평, POI 36개
+    '천마산_0000000005.gpx',        # 경기,    POI 36개
+    '두륜산_0000000001.gpx',        # 전남 해남, POI 33개
+
+    # ── 유형 A (산책·인스타) 11개 ─────────────────────────────
+    '무학산_0000000001.gpx',   # 경남 마산, POI 33개
+    '치악산_0000000001.gpx',   # 강원 원주, POI 28개
+    '감악산_0000000001.gpx',   # 경기 파주, POI 27개
+    '모악산_0000000001.gpx',   # 전북 김제, POI 25개
+    '내연산_0000000001.gpx',   # 경북 포항, POI 24개
+    '남산_0000000001.gpx',     # 경북 경주, POI 24개
+    '미륵산_0000000001.gpx',   # 경남 통영, POI 20개
+    '월출산_0000000001.gpx',   # 전남 영암, POI 19개
+    '마이산_0000000001.gpx',   # 전북 진안, POI 18개
+    '소백산_0000000001.gpx',   # 충북·경북, POI 15개
+    '한라산_0000000001.gpx',   # 제주,     POI 4개 (상징성)
 ]
 
 MOUNTAIN_SLUG = {
-    '북한산': 'bukhansan',
-    '관악산': 'gwanaksan',
-    '도봉산': 'dobongsan',
-    '계룡산': 'gyeryongsan',
-    '내장산': 'naejangsan',
-    '주왕산': 'juwangsan',
-    '금정산': 'geumjeongsan',
-    '설악산': 'seoraksan',
+    # 기존
+    '북한산': 'bukhansan', '관악산': 'gwanaksan', '도봉산': 'dobongsan',
+    '계룡산': 'gyeryongsan', '내장산': 'naejangsan', '주왕산': 'juwangsan',
+    '금정산': 'geumjeongsan', '설악산': 'seoraksan',
+    # 유형 B
+    '삼악산': 'samaksan', '유명산': 'yumyeongsan', '지리산': 'jirisan',
+    '공작산': 'gongjaksan', '비슬산': 'biseulsan', '칠갑산': 'chilgapsan',
+    '재약산': 'jaeyaksan', '마니산': 'manisan', '속리산': 'sokrisan',
+    '변산': 'byeonsan',
+    # 유형 C
+    '금오산': 'geumosan', '무등산': 'mudeungsan', '팔공산': 'palgongsan',
+    '신불산': 'sinbulsan', '백운산(광양)': 'baegуnsangwangyang',
+    '가지산': 'gajisan', '용문산': 'yongmunsan', '천마산': 'cheonmasan',
+    '두륜산': 'duryunsan',
+    # 유형 A
+    '무학산': 'muhaksan', '치악산': 'chiaksan', '감악산': 'gamaksan',
+    '모악산': 'moaksan', '내연산': 'naeyeonsan', '남산': 'namsan',
+    '미륵산': 'mireuksan', '월출산': 'wolchulsan', '마이산': 'maisan',
+    '소백산': 'sobaeksan', '한라산': 'hallasan',
 }
 
-# 산별 Unsplash 실사진 썸네일 URL (400x300)
+# 산별 로컬 썸네일 (images/ 폴더)
 MOUNTAIN_THUMBNAIL = {
-    '북한산': 'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=400&h=300&fit=crop',
-    '관악산': 'https://images.unsplash.com/photo-1626196340348-b11c6f5f5f3e?w=400&h=300&fit=crop',
-    '도봉산': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop',
-    '계룡산': 'https://images.unsplash.com/photo-1560707303-4e980ce876ad?w=400&h=300&fit=crop',
-    '내장산': 'https://images.unsplash.com/photo-1604999333679-b86d54738315?w=400&h=300&fit=crop',
-    '주왕산': 'https://images.unsplash.com/photo-1596451190630-186aff535bf2?w=400&h=300&fit=crop',
-    '금정산': 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300&fit=crop',
-    '설악산': 'https://images.unsplash.com/photo-1537519646099-335112f03225?w=400&h=300&fit=crop',
+    # 기존 8개 — 이미 images/ 폴더에 존재
+    '북한산': 'images/북한산.jpg', '관악산': 'images/관악산.jpg',
+    '도봉산': 'images/도봉산.jpg', '계룡산': 'images/계룡산.jpg',
+    '내장산': 'images/내장산.jpg', '주왕산': 'images/주왕산.jpg',
+    '금정산': 'images/금정산.jpg', '설악산': 'images/설악산.jpg',
+    # 신규 30개 — 아래 Python 다운로더로 생성됨
+    '삼악산': 'images/삼악산.jpg', '유명산': 'images/유명산.jpg',
+    '지리산': 'images/지리산.jpg', '공작산': 'images/공작산.jpg',
+    '비슬산': 'images/비슬산.jpg', '칠갑산': 'images/칠갑산.jpg',
+    '재약산': 'images/재약산.jpg', '마니산': 'images/마니산.jpg',
+    '속리산': 'images/속리산.jpg', '변산': 'images/변산.jpg',
+    '금오산': 'images/금오산.jpg', '무등산': 'images/무등산.jpg',
+    '팔공산': 'images/팔공산.jpg', '신불산': 'images/신불산.jpg',
+    '백운산(광양)': 'images/백운산(광양).jpg',
+    '가지산': 'images/가지산.jpg', '용문산': 'images/용문산.jpg',
+    '천마산': 'images/천마산.jpg', '두륜산': 'images/두륜산.jpg',
+    '무학산': 'images/무학산.jpg', '치악산': 'images/치악산.jpg',
+    '감악산': 'images/감악산.jpg', '모악산': 'images/모악산.jpg',
+    '내연산': 'images/내연산.jpg', '남산': 'images/남산.jpg',
+    '미륵산': 'images/미륵산.jpg', '월출산': 'images/월출산.jpg',
+    '마이산': 'images/마이산.jpg', '소백산': 'images/소백산.jpg',
+    '한라산': 'images/한라산.jpg',
 }
 
-# 웨이포인트용 썸네일 URL (200x150)
-WP_THUMBNAIL = {
-    '북한산': 'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=200&h=150&fit=crop',
-    '관악산': 'https://images.unsplash.com/photo-1626196340348-b11c6f5f5f3e?w=200&h=150&fit=crop',
-    '도봉산': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=200&h=150&fit=crop',
-    '계룡산': 'https://images.unsplash.com/photo-1560707303-4e980ce876ad?w=200&h=150&fit=crop',
-    '내장산': 'https://images.unsplash.com/photo-1604999333679-b86d54738315?w=200&h=150&fit=crop',
-    '주왕산': 'https://images.unsplash.com/photo-1596451190630-186aff535bf2?w=200&h=150&fit=crop',
-    '금정산': 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=200&h=150&fit=crop',
-    '설악산': 'https://images.unsplash.com/photo-1537519646099-335112f03225?w=200&h=150&fit=crop',
-}
+# 웨이포인트 썸네일 = 메인 썸네일과 동일 (course.html에서 이미지 삭제됨)
+WP_THUMBNAIL = MOUNTAIN_THUMBNAIL
 
 
 def map_difficulty(band: str) -> str:
@@ -252,8 +304,8 @@ def build_course(row: dict, gpx_points: list) -> dict:
     mountain   = row['Mountain']
     filename   = row['Filename']
     slug       = MOUNTAIN_SLUG.get(mountain, mountain)
-    num        = filename.replace(f'{mountain}_', '').replace('.gpx', '')
-    short_num  = str(int(num))
+    m_num      = re.search(r'_(\d+)\.gpx$', filename)
+    short_num  = str(int(m_num.group(1))) if m_num else '1'
 
     difficulty  = map_difficulty(row.get('Difficulty_Band', ''))
     total_dist  = safe_float(row['Total_Distance_km'])
