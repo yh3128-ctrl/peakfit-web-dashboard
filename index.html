@@ -207,6 +207,11 @@
         <div id="recommendation-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <!-- JS 렌더링 -->
         </div>
+        <p class="text-xs text-gray-400 mt-3 leading-relaxed">
+          * <strong>매칭률</strong>: 온보딩에서 선택한 경험·체력·시간·목적이 이 코스 특성과
+          얼마나 일치하는지를 나타냅니다.
+          <em>(코스 상세의 적합도†와 다릅니다)</em>
+        </p>
       </div>
     </div>
 
@@ -404,7 +409,7 @@
               <img src="${c.thumbnail || ''}" alt="${c.mountain}"
                    onerror="this.parentElement.style.background='var(--beige-dark)'">
               <div class="rec-rank">${i + 1}</div>
-              <div class="match-badge">${c.matchScore}% 매칭</div>
+              <div class="match-badge">${c.matchScore}% 매칭*</div>
             </div>
             <div class="rec-body">
               <div class="rec-meta">

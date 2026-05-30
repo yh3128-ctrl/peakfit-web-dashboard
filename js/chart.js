@@ -75,12 +75,20 @@ function renderAltitudeChart(course) {
   const actual  = calcCourseValues(course);
   const compat  = calcCompatibility(actual, ideal);
 
+  // 페르소나 실제 레이블 (map.html·back-bar와 동일)
+  const PERSONA_LABELS = {
+    A: '🟢 산책·인스타',
+    B: '🔴 성취감·운동',
+    C: '🔵 풍경·장거리',
+  };
+  const pLabel = PERSONA_LABELS[pk] || '페르소나';
+
   // 헤더 업데이트
   const headerEl = document.getElementById('radar-header');
   const compatEl = document.getElementById('radar-compat');
   const subEl    = document.getElementById('radar-sub');
-  if (headerEl) headerEl.textContent = `페르소나 ↔ ${course.mountain} 적합도`;
-  if (compatEl) compatEl.textContent = `적합도 ${compat}%`;
+  if (headerEl) headerEl.textContent = `${pLabel} ↔ ${course.mountain} 적합도`;
+  if (compatEl) compatEl.textContent = `적합도 ${compat}%†`;
   if (subEl)    subEl.textContent    = '두 도형이 포개질수록 적합';
 
   // 배지 색상
