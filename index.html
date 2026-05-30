@@ -19,6 +19,8 @@
     }}
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <!-- ?v= 파라미터로 CDN 캐시 우회 -->
   <link rel="stylesheet" href="css/style.css?v=20260530" />
 </head>
@@ -196,22 +198,31 @@
     <!-- Top 3 추천 -->
     <div class="py-8 px-4" style="background:var(--beige-dark)">
       <div class="max-w-4xl mx-auto">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-base font-black" style="color:var(--forest)">내 맞춤 추천 코스 Top 3</h2>
-          <a href="map.html"
-             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white transition-colors"
-             style="background:var(--forest)">
-            🗺️ 지도로 탐색
-          </a>
-        </div>
+        <h2 class="text-base font-black mb-4" style="color:var(--forest)">내 맞춤 추천 코스 Top 3</h2>
         <div id="recommendation-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <!-- JS 렌더링 -->
         </div>
       </div>
     </div>
 
-    <!-- 섹션 구분선 -->
-    <div class="section-divider-bar max-w-4xl mx-auto px-4">전체 코스 탐색</div>
+    <!-- 미니맵 + 전체 코스 탐색 -->
+    <div class="max-w-4xl mx-auto px-4 pt-2 pb-4">
+      <!-- 미니 Leaflet 지도 -->
+      <div style="position:relative;border-radius:16px;overflow:hidden;height:210px;border:1.5px solid var(--beige-dark);box-shadow:0 2px 12px rgba(27,67,50,0.1)">
+        <div id="mini-map" style="height:100%;width:100%;cursor:pointer" onclick="location.href='map.html'"></div>
+        <!-- 클릭 오버레이 -->
+        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(27,67,50,0.65) 0%,transparent 55%);pointer-events:none"></div>
+        <div style="position:absolute;bottom:12px;left:16px;pointer-events:none">
+          <p style="color:rgba(255,255,255,0.75);font-size:11px;margin-bottom:4px;font-weight:600;letter-spacing:0.04em">8개 코스 · 페르소나별 탐색</p>
+        </div>
+        <a href="map.html"
+           style="position:absolute;bottom:12px;right:12px;background:white;color:var(--forest);font-size:12px;font-weight:800;padding:7px 14px;border-radius:20px;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:10">
+          🗺️ 지도 전체 탐색
+        </a>
+      </div>
+      <!-- 구분선 텍스트 -->
+      <div class="section-divider-bar mt-0">전체 코스 탐색</div>
+    </div>
 
     <!-- 코스 그리드 -->
     <main class="max-w-4xl mx-auto px-4 sm:px-6 py-6">
@@ -374,6 +385,8 @@
       document.getElementById('screen-results').classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setStep(2);
+      // 미니맵 초기화 (Leaflet은 DOM이 보인 후에 초기화해야 함)
+      setTimeout(() => initMiniMap(window._allCourses || []), 100);
     }
 
     // ── CTA 클릭 → Screen B 전환 ──────────────────────────────
@@ -421,11 +434,53 @@
       setStep(1);
     }
 
+    // ── 미니맵 초기화 (Leaflet) ───────────────────────────────
+    let _miniMapInited = false;
+    function initMiniMap(courses) {
+      if (_miniMapInited || !window.L) return;
+      _miniMapInited = true;
+
+      const PCOLOR = { A: '#22c55e', B: '#C84B2F', C: '#3b82f6' };
+      const getPK = t => t?.includes('A') ? 'A' : t?.includes('B') ? 'B' : 'C';
+
+      const miniMap = L.map('mini-map', {
+        zoomControl: false, scrollWheelZoom: false,
+        dragging: false, touchZoom: false,
+        doubleClickZoom: false, boxZoom: false,
+        keyboard: false, attributionControl: false,
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+      }).addTo(miniMap);
+
+      const coords = [];
+      courses.forEach(c => {
+        const wps = c.waypoints || [];
+        const wp  = wps.find(w => w.type === 'summit') || wps.find(w => w.type === 'end') || wps[0];
+        if (!wp) return;
+        const color = PCOLOR[getPK(c.personaType)];
+        L.circleMarker([wp.lat, wp.lng], {
+          radius: 8, color: 'white', weight: 2,
+          fillColor: color, fillOpacity: 0.9,
+        }).addTo(miniMap);
+        coords.push([wp.lat, wp.lng]);
+      });
+
+      if (coords.length) {
+        miniMap.fitBounds(L.latLngBounds(coords), { padding: [24, 24] });
+      }
+    }
+
     // ── 페이지 초기화 ─────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
-      // 데이터 로드 후 뒤로가기 복원 확인
+      // 데이터 로드 후 뒤로가기 복원 + 미니맵 초기화
       initFilterPage().then(() => {
         restoreFromSession();
+        if (document.getElementById('screen-results') &&
+            !document.getElementById('screen-results').classList.contains('hidden')) {
+          initMiniMap(window._allCourses || []);
+        }
       }).catch(() => {});
 
       document.getElementById('bookmarks-toggle-btn').addEventListener('click', () => {

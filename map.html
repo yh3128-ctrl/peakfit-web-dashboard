@@ -215,12 +215,7 @@
       </div>
 
       <!-- 산 목록 -->
-      <div id="mountain-list">
-        <div id="empty-state" class="hidden">
-          <div class="text-4xl mb-3">🏔️</div>
-          <p>해당 유형의 코스가 없습니다</p>
-        </div>
-      </div>
+      <div id="mountain-list"></div>
     </aside>
 
     <!-- 우측: Leaflet 지도 -->
@@ -316,18 +311,11 @@
 
     // ── 산 목록 카드 렌더링 ────────────────────────────────────
     function renderList(courses) {
-      const list  = document.getElementById('mountain-list');
-      const empty = document.getElementById('empty-state');
+      const list = document.getElementById('mountain-list');
       document.getElementById('visible-count').textContent = courses.length;
+      list.innerHTML = '';  // 기존 카드 전체 제거
 
-      // 기존 카드 제거 (empty-state 제외)
-      [...list.children].forEach(c => { if (c.id !== 'empty-state') c.remove(); });
-
-      if (!courses.length) {
-        empty.classList.remove('hidden');
-        return;
-      }
-      empty.classList.add('hidden');
+      if (!courses.length) return;
 
       courses.forEach(course => {
         const pk   = getPersonaKey(course.personaType);
