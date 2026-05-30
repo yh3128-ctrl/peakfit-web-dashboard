@@ -205,23 +205,36 @@
       </div>
     </div>
 
-    <!-- 미니맵 + 전체 코스 탐색 -->
-    <div class="max-w-4xl mx-auto px-4 pt-2 pb-4">
-      <!-- 미니 Leaflet 지도 -->
-      <div style="position:relative;border-radius:16px;overflow:hidden;height:210px;border:1.5px solid var(--beige-dark);box-shadow:0 2px 12px rgba(27,67,50,0.1)">
-        <div id="mini-map" style="height:100%;width:100%;cursor:pointer" onclick="location.href='map.html'"></div>
-        <!-- 클릭 오버레이 -->
-        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(27,67,50,0.65) 0%,transparent 55%);pointer-events:none"></div>
-        <div style="position:absolute;bottom:12px;left:16px;pointer-events:none">
-          <p style="color:rgba(255,255,255,0.75);font-size:11px;margin-bottom:4px;font-weight:600;letter-spacing:0.04em">8개 코스 · 페르소나별 탐색</p>
+    <!-- 전체 코스 탐색 (미니맵 섹션) — Top3 카드와 동일한 max-w-4xl 기준 -->
+    <div style="background:var(--beige-dark);padding:24px 16px 24px;">
+      <div class="max-w-4xl mx-auto">
+
+        <!-- 타이틀 -->
+        <h2 class="text-base font-black mb-3" style="color:var(--forest)">전체 코스 탐색</h2>
+
+        <!-- 페르소나 필터 버튼 -->
+        <div class="flex gap-2 mb-3 flex-wrap">
+          <button class="mini-pf-btn all active" data-filter="all"  onclick="miniSetFilter('all',this)">🏔️ 전체</button>
+          <button class="mini-pf-btn typeA"       data-filter="A"   onclick="miniSetFilter('A',this)">🟢 산책·인스타</button>
+          <button class="mini-pf-btn typeB"       data-filter="B"   onclick="miniSetFilter('B',this)">🔴 성취감·운동</button>
+          <button class="mini-pf-btn typeC"       data-filter="C"   onclick="miniSetFilter('C',this)">🔵 풍경·장거리</button>
         </div>
-        <a href="map.html"
-           style="position:absolute;bottom:12px;right:12px;background:white;color:var(--forest);font-size:12px;font-weight:800;padding:7px 14px;border-radius:20px;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:10">
-          🗺️ 지도 전체 탐색
-        </a>
+
+        <!-- 지도 컨테이너 (정사각형은 JS로 높이 계산) -->
+        <div id="mini-map-container"
+             style="position:relative;width:100%;border-radius:16px;overflow:hidden;border:1.5px solid #c9bfad;box-shadow:0 2px 16px rgba(27,67,50,0.12);">
+          <div id="mini-map" style="width:100%;height:100%;"></div>
+
+          <!-- 우측 하단: 확대/축소/전체화면 -->
+          <div style="position:absolute;bottom:12px;right:12px;z-index:500;display:flex;flex-direction:column;gap:5px;">
+            <button onclick="miniZoomIn()"  class="mini-ctrl-btn" title="확대">+</button>
+            <button onclick="miniZoomOut()" class="mini-ctrl-btn" title="축소">−</button>
+            <a href="map.html" class="mini-ctrl-btn" title="전체화면 탐색"
+               style="text-decoration:none;font-size:15px;">⛶</a>
+          </div>
+        </div>
+
       </div>
-      <!-- 구분선 텍스트 -->
-      <div class="section-divider-bar mt-0">전체 코스 탐색</div>
     </div>
 
     <!-- 코스 그리드 -->
@@ -434,43 +447,90 @@
       setStep(1);
     }
 
-    // ── 미니맵 초기화 (Leaflet) ───────────────────────────────
+    // ── 미니맵 상태 ───────────────────────────────────────────
     let _miniMapInited = false;
+    let _miniMap       = null;
+    let _miniMarkers   = {};    // id → { marker, pk }
+    let _miniFilter    = 'all';
+    const _MINI_COLOR  = { A: '#22c55e', B: '#C84B2F', C: '#3b82f6' };
+    const _getPK = t => t?.includes('A') ? 'A' : t?.includes('B') ? 'B' : 'C';
+
     function initMiniMap(courses) {
       if (_miniMapInited || !window.L) return;
       _miniMapInited = true;
 
-      const PCOLOR = { A: '#22c55e', B: '#C84B2F', C: '#3b82f6' };
-      const getPK = t => t?.includes('A') ? 'A' : t?.includes('B') ? 'B' : 'C';
+      // 정사각형: 너비 기준으로 높이 설정 (최대 560px)
+      const container = document.getElementById('mini-map-container');
+      if (!container) return;
+      const w = container.getBoundingClientRect().width;
+      container.style.height = Math.min(w, 560) + 'px';
 
-      const miniMap = L.map('mini-map', {
+      _miniMap = L.map('mini-map', {
         zoomControl: false, scrollWheelZoom: false,
-        dragging: false, touchZoom: false,
-        doubleClickZoom: false, boxZoom: false,
-        keyboard: false, attributionControl: false,
+        dragging: true, touchZoom: true, doubleClickZoom: true,
+        boxZoom: false, keyboard: false, attributionControl: false,
       });
 
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-      }).addTo(miniMap);
+        maxZoom: 18,
+      }).addTo(_miniMap);
 
       const coords = [];
       courses.forEach(c => {
         const wps = c.waypoints || [];
         const wp  = wps.find(w => w.type === 'summit') || wps.find(w => w.type === 'end') || wps[0];
         if (!wp) return;
-        const color = PCOLOR[getPK(c.personaType)];
-        L.circleMarker([wp.lat, wp.lng], {
+        const pk    = _getPK(c.personaType);
+        const color = _MINI_COLOR[pk];
+        const dist  = c.totalDistance ? c.totalDistance.toFixed(1) + 'km' : '—';
+
+        const marker = L.circleMarker([wp.lat, wp.lng], {
           radius: 8, color: 'white', weight: 2,
           fillColor: color, fillOpacity: 0.9,
-        }).addTo(miniMap);
+        }).addTo(_miniMap)
+        .bindPopup(`
+          <div style="font-family:'Noto Sans KR',sans-serif;min-width:150px">
+            <b style="color:var(--forest);font-size:14px">${c.mountain}</b>
+            <p style="font-size:11px;color:#6b7280;margin:3px 0 8px">${c.difficulty || ''} · ${dist}</p>
+            <a href="course.html?id=${c.id}"
+               style="display:block;text-align:center;background:var(--crimson);color:white;
+                      padding:6px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">
+              코스 보기 →
+            </a>
+          </div>`, { maxWidth: 210 });
+
+        _miniMarkers[c.id] = { marker, pk };
         coords.push([wp.lat, wp.lng]);
       });
 
       if (coords.length) {
-        miniMap.fitBounds(L.latLngBounds(coords), { padding: [24, 24] });
+        _miniMap.fitBounds(L.latLngBounds(coords), { padding: [20, 20] });
       }
     }
+
+    // ── 미니맵 페르소나 필터 ──────────────────────────────────
+    function miniSetFilter(key, btn) {
+      _miniFilter = key;
+      document.querySelectorAll('.mini-pf-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (!_miniMap) return;
+
+      const visible = [];
+      Object.values(_miniMarkers).forEach(({ marker, pk }) => {
+        if (key === 'all' || pk === key) {
+          if (!_miniMap.hasLayer(marker)) marker.addTo(_miniMap);
+          visible.push(marker.getLatLng());
+        } else {
+          if (_miniMap.hasLayer(marker)) marker.remove();
+        }
+      });
+      if (visible.length > 0) {
+        _miniMap.fitBounds(L.latLngBounds(visible), { padding: [30, 30], maxZoom: 10 });
+      }
+    }
+
+    function miniZoomIn()  { _miniMap && _miniMap.zoomIn(); }
+    function miniZoomOut() { _miniMap && _miniMap.zoomOut(); }
 
     // ── 페이지 초기화 ─────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {

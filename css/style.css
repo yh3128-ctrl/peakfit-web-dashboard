@@ -508,6 +508,36 @@ body { font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-seri
 .info-card-title { font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
 .info-card p { font-size: 13px; color: #4b5563; line-height: 1.6; }
 
+/* ── 미니맵 페르소나 필터 버튼 ─────────────────────────── */
+.mini-pf-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--beige-dark);
+  background: white;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.mini-pf-btn:hover:not(.active) { border-color: var(--forest-light); background: var(--beige); }
+.mini-pf-btn.active { color: white; border-color: transparent; }
+.mini-pf-btn.all.active   { background: var(--forest); }
+.mini-pf-btn.typeA.active { background: #22c55e; }
+.mini-pf-btn.typeB.active { background: var(--crimson); }
+.mini-pf-btn.typeC.active { background: #3b82f6; }
+
+/* ── 미니맵 컨트롤 버튼 (확대/축소/전체화면) ───────────── */
+.mini-ctrl-btn {
+  width: 34px; height: 34px;
+  background: white; border: none;
+  border-radius: 8px; font-size: 18px; font-weight: 800;
+  cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s; color: var(--forest);
+}
+.mini-ctrl-btn:hover { background: var(--beige); }
+
 /* ── 모바일 반응형 ──────────────────────────────────────────── */
 @media (max-width: 767px) {
   .split-container { flex-direction: column; height: auto; overflow: visible; }
