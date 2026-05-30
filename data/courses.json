@@ -23,7 +23,7 @@
       "autumn",
       "winter"
     ],
-    "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Insoo_peak.jpg/320px-Insoo_peak.jpg",
+    "thumbnail": "images/북한산.jpg",
     "rating": null,
     "ratingCount": 0,
     "parking": "북한산 인근 공영주차장 이용 (현장 확인 권장)",
@@ -191,7 +191,7 @@
       "summer",
       "autumn"
     ],
-    "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Gwanaksan_Seoul_KR.jpg/320px-Gwanaksan_Seoul_KR.jpg",
+    "thumbnail": "images/관악산.jpg",
     "rating": null,
     "ratingCount": 0,
     "parking": "관악산 인근 공영주차장 이용 (현장 확인 권장)",
@@ -358,7 +358,7 @@
       "spring",
       "autumn"
     ],
-    "thumbnail": "https://upload.wikimedia.org/wikipedia/ko/thumb/b/be/Dobongsan.jpg/320px-Dobongsan.jpg",
+    "thumbnail": "images/도봉산.jpg",
     "rating": null,
     "ratingCount": 0,
     "parking": "도봉산 인근 공영주차장 이용 (현장 확인 권장)",
@@ -526,7 +526,7 @@
       "summer",
       "autumn"
     ],
-    "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Mount_Gyeryong_from_Jang-gun_peak.jpg/320px-Mount_Gyeryong_from_Jang-gun_peak.jpg",
+    "thumbnail": "images/계룡산.jpg",
     "rating": null,
     "ratingCount": 0,
     "parking": "계룡산 인근 공영주차장 이용 (현장 확인 권장)",
@@ -694,7 +694,7 @@
       "summer",
       "autumn"
     ],
-    "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/%EB%82%B4%EC%9E%A5%EC%82%B0_%EB%82%A8%EC%B0%BD%EA%B3%84%EA%B3%A1.jpg/320px-%EB%82%B4%EC%9E%A5%EC%82%B0_%EB%82%A8%EC%B0%BD%EA%B3%84%EA%B3%A1.jpg",
+    "thumbnail": "images/내장산.jpg",
     "rating": null,
     "ratingCount": 0,
     "parking": "내장산 인근 공영주차장 이용 (현장 확인 권장)",
@@ -863,7 +863,7 @@
       "autumn",
       "winter"
     ],
-    "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/%EC%A3%BC%EC%99%95%EC%82%B0_%28_2_%29.jpg/320px-%EC%A3%BC%EC%99%95%EC%82%B0_%28_2_%29.jpg",
+    "thumbnail": "images/주왕산.jpg",
     "rating": null,
     "ratingCount": 0,
     "parking": "주왕산 인근 공영주차장 이용 (현장 확인 권장)",
@@ -1030,7 +1030,7 @@
       "spring",
       "autumn"
     ],
-    "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/%EA%B8%88%EC%A0%95%EC%82%B0.jpg/320px-%EA%B8%88%EC%A0%95%EC%82%B0.jpg",
+    "thumbnail": "images/금정산.jpg",
     "rating": null,
     "ratingCount": 0,
     "parking": "금정산 인근 공영주차장 이용 (현장 확인 권장)",
@@ -1197,7 +1197,7 @@
       "autumn",
       "winter"
     ],
-    "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Korea_Seoraksan.jpg/320px-Korea_Seoraksan.jpg",
+    "thumbnail": "images/설악산.jpg",
     "rating": null,
     "ratingCount": 0,
     "parking": "설악산 인근 공영주차장 이용 (현장 확인 권장)",
