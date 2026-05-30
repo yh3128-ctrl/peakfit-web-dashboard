@@ -184,12 +184,17 @@
 
     <!-- 다시 추천받기 바 -->
     <div class="back-bar">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-2 flex-wrap">
         <button onclick="goToOnboarding()"
-          class="flex items-center gap-1.5 text-sm font-bold transition-colors"
+          class="flex items-center gap-1.5 text-sm font-bold transition-colors flex-shrink-0"
           style="color:var(--forest)">
           ← 다시 추천받기
         </button>
+        <span class="text-gray-300 select-none">|</span>
+        <!-- 유저 페르소나 뱃지 -->
+        <span id="user-persona-badge"
+          class="text-xs font-black px-3 py-1 rounded-full border flex-shrink-0">
+        </span>
         <span class="text-gray-300 select-none">|</span>
         <span id="profile-summary" class="text-sm text-gray-500 truncate"></span>
       </div>
@@ -315,6 +320,38 @@
       return el ? el.dataset.value : null;
     }
 
+    // ── 페르소나 정보 (map.html과 동일한 명칭) ────────────────
+    const PERSONA_INFO = {
+      A: { label: '🟢 산책·인스타', bg: '#dcfce7', text: '#166534', border: '#22c55e' },
+      B: { label: '🔴 성취감·운동', bg: '#fee2e2', text: '#991b1b', border: '#C84B2F' },
+      C: { label: '🔵 풍경·장거리', bg: '#dbeafe', text: '#1e40af', border: '#3b82f6' },
+    };
+
+    // ── 온보딩 선택 → 유저 페르소나 판정 ─────────────────────
+    function determinePersona() {
+      const purpose = getSelected('purpose') || '풍경';
+      const fitness = getSelected('fitness') || '중급';
+
+      if (purpose === '운동')  return 'B';        // 운동·도전 → 🔴 성취감·운동
+      if (purpose === '인스타') return 'A';        // 가볍게·인스타 → 🟢 산책·인스타
+      if (purpose === '맛집')  return 'A';         // 맛집·카페 → 🟢 산책·인스타
+      // 풍경·단풍
+      if (fitness === '고수')  return 'C';         // 고수 + 풍경 → 🔵 풍경·장거리
+      return 'A';                                   // 처음/중급 + 풍경 → 🟢 산책·인스타
+    }
+
+    // ── 페르소나 뱃지 업데이트 ────────────────────────────────
+    function updatePersonaBadge() {
+      const pk    = determinePersona();
+      const pinfo = PERSONA_INFO[pk];
+      const badge = document.getElementById('user-persona-badge');
+      if (!badge) return;
+      badge.textContent         = pinfo.label;
+      badge.style.background    = pinfo.bg;
+      badge.style.color         = pinfo.text;
+      badge.style.borderColor   = pinfo.border;
+    }
+
     // ── 기존 recommendation.js 엔진에 맞게 매핑 ──────────────
     function buildUserProfile() {
       const fitness  = getSelected('fitness')  || '중급';
@@ -393,6 +430,7 @@
       const userProfile = buildUserProfile();
       const top3 = window.getRecommendedCourses(window._allCourses, userProfile, 3);
       renderRecommendationCards(top3);
+      updatePersonaBadge();
       document.getElementById('profile-summary').textContent = buildSummaryText();
       document.getElementById('screen-onboarding').classList.add('hidden');
       document.getElementById('screen-results').classList.remove('hidden');
