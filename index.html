@@ -3,126 +3,269 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>⛰️ 등산코스 플래너</title>
+  <title>PeakFit — 100대 명산 코스 큐레이션</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css" />
   <script>
-    // Tailwind 커스텀 색상 설정
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            primary: { 50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' },
-            surface: '#f8fafc',
+            forest: { DEFAULT: '#1B4332', dark: '#0F2B1F', mid: '#2D5A3D', light: '#3D7A56' },
+            beige:  { DEFAULT: '#F5F0E6', dark: '#EDE6D8' },
+            crimson:{ DEFAULT: '#C84B2F', dark: '#A83B22' },
           }
         }
       }
     }
   </script>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="min-h-screen">
 
-  <!-- 헤더 -->
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          ⛰️ <span>등산코스 플래너</span>
-        </h1>
-        <p class="text-sm text-gray-500 mt-0.5">나에게 맞는 등산코스를 찾아보세요</p>
+  <!-- ================================================================
+       HEADER — 항상 표시
+       ================================================================ -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm" style="height:var(--header-height)">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between gap-3">
+
+      <!-- 로고 -->
+      <div class="flex-shrink-0 flex items-baseline gap-2">
+        <span class="text-lg font-black tracking-tight" style="color:var(--forest)">PeakFit</span>
+        <span class="hidden sm:inline text-xs font-semibold text-gray-400 tracking-wide whitespace-nowrap">100대 명산 코스 큐레이션</span>
       </div>
-      <div class="flex items-center gap-2">
-        <button id="bookmarks-toggle-btn" class="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-          🔖 <span class="hidden sm:inline">저장된 코스</span>
-        </button>
+
+      <!-- 스텝 인디케이터 -->
+      <div id="step-indicator" class="flex items-center gap-1 select-none">
+        <span class="step-item active" data-step="1">① 목적</span>
+        <span class="step-arrow">→</span>
+        <span class="step-item" data-step="2">② 추천</span>
+        <span class="step-arrow">→</span>
+        <span class="step-item" data-step="3">③ 코스</span>
       </div>
+
+      <!-- 북마크 버튼 -->
+      <button id="bookmarks-toggle-btn"
+        class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+        🔖 <span class="hidden sm:inline">저장된 코스</span>
+      </button>
     </div>
   </header>
 
-  <!-- 온보딩 매칭 알고리즘 테스트 영역 (개발자 테스트용) -->
-  <div class="bg-blue-50 border-b border-blue-100 py-4 px-4 sm:px-6">
-    <div class="max-w-7xl mx-auto">
-      <div class="flex items-center gap-2 mb-3">
-        <span class="text-xl">🤖</span>
-        <h2 class="text-sm font-bold text-blue-900">맞춤 산 추천 매칭 테스트 (개발자 모드)</h2>
-      </div>
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
-        <select id="user-exp" class="text-sm rounded border border-blue-200 p-2"><option value="처음">경험: 처음/입문</option><option value="중급">경험: 중급</option><option value="고수">경험: 고수</option></select>
-        <select id="user-stam" class="text-sm rounded border border-blue-200 p-2"><option value="여유">체력: 여유롭게</option><option value="보통" selected>체력: 보통</option><option value="강행군">체력: 강행군</option></select>
-        <select id="user-time" class="text-sm rounded border border-blue-200 p-2"><option value="3h">시간: 3시간 이하</option><option value="3-6h" selected>시간: 3~6시간</option><option value="6h+">시간: 6시간 이상</option></select>
-        <select id="user-purp" class="text-sm rounded border border-blue-200 p-2"><option value="풍경">목적: 풍경/인스타</option><option value="운동">목적: 운동/성취감</option></select>
-        <select id="user-reg" class="text-sm rounded border border-blue-200 p-2"><option value="">지역: 무관</option><option value="서울">서울</option><option value="경기">경기</option><option value="강원">강원</option><option value="충남">충남</option><option value="전북">전북</option><option value="경북">경북</option><option value="부산">부산</option></select>
-      </div>
-      <button onclick="runRecommendationTest()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors text-sm">내 취향에 맞는 산 추천받기</button>
-      
-      <!-- 추천 결과 컨테이너 -->
-      <div id="recommendation-results" class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 hidden"></div>
-    </div>
-  </div>
 
-  <!-- 필터 바 -->
-  <div class="bg-white border-b border-gray-200 sticky top-[73px] z-30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-      <!-- 난이도 필터 -->
-      <div class="flex items-center gap-2 mb-3">
-        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">난이도</span>
-        <div class="flex gap-2 overflow-x-auto filter-scroll pb-0.5">
-          <button class="filter-btn difficulty-btn active px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="전체">전체</button>
-          <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="초급">🟢 초급</button>
-          <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="중급">🟠 중급</button>
-          <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="고급">🔴 고급</button>
+  <!-- ================================================================
+       SCREEN A — 온보딩
+       ================================================================ -->
+  <div id="screen-onboarding">
+
+    <!-- 히어로 -->
+    <section class="ob-hero">
+      <div class="ob-hero-inner">
+        <p class="ob-hero-label">PURPOSE-BASED TRAILS</p>
+        <h1 class="ob-hero-title">목적을 정하면,<br>최적의 산길이 보입니다</h1>
+        <p class="ob-hero-sub">체력·동행·테마·계절을 알려주시면 산림청 100대 명산의 650개 코스를 분석해 가장 잘 맞는 길을 골라드립니다.</p>
+        <div class="ob-stats">
+          <div class="ob-stat"><span class="ob-stat-num">100</span><span class="ob-stat-label">대명산</span></div>
+          <div class="ob-stat-divider"></div>
+          <div class="ob-stat"><span class="ob-stat-num">650</span><span class="ob-stat-label">개코스</span></div>
+          <div class="ob-stat-divider"></div>
+          <div class="ob-stat"><span class="ob-stat-num">2,040</span><span class="ob-stat-label">곳 도보권 POI</span></div>
         </div>
       </div>
-      <!-- 해시태그 필터 -->
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">태그</span>
-        <div class="flex gap-2 overflow-x-auto filter-scroll pb-0.5">
-          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#초보가능">🟢 #초보가능</button>
-          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#관절보호">🦵 #관절보호</button>
-          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#가벼운발걸음">🚶 #가벼운발걸음</button>
-          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#오운완">🏅 #오운완</button>
-          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#원점회귀">🔄 #원점회귀</button>
-          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#대중교통가능">🚌 #대중교통</button>
-          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#케이블카">🚡 #케이블카</button>
-          <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#인생샷">📸 #인생샷</button>
+    </section>
+
+    <!-- 질문 카드 -->
+    <div class="ob-questions">
+
+      <!-- Q1: 체력 자신감 -->
+      <div class="ob-card">
+        <div class="q-header">
+          <div class="q-num">1</div>
+          <div>
+            <div class="q-title">체력 자신감</div>
+            <div class="q-sub">오르막을 얼마나 견디시나요?</div>
+          </div>
+        </div>
+        <div class="ob-options">
+          <button class="ob-btn" data-group="fitness" data-value="처음">입문·천천히</button>
+          <button class="ob-btn selected" data-group="fitness" data-value="중급">보통 정도</button>
+          <button class="ob-btn" data-group="fitness" data-value="고수">자신 있어요</button>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- 메인 콘텐츠 -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-    <!-- 결과 카운트 -->
-    <div class="flex items-center justify-between mb-4">
-      <p class="text-sm text-gray-600">
-        총 <span id="result-count" class="font-semibold text-gray-900">0</span>개의 코스
-      </p>
-      <div id="active-filters" class="flex gap-2 flex-wrap"></div>
-    </div>
+      <!-- Q2: 누구와 -->
+      <div class="ob-card">
+        <div class="q-header">
+          <div class="q-num">2</div>
+          <div><div class="q-title">누구와 함께 가나요?</div></div>
+        </div>
+        <div class="ob-options">
+          <button class="ob-btn" data-group="companion" data-value="혼자">혼자</button>
+          <button class="ob-btn selected" data-group="companion" data-value="친구·연인">친구·연인</button>
+          <button class="ob-btn" data-group="companion" data-value="가족·아이">가족·아이</button>
+        </div>
+      </div>
 
-    <!-- 코스 카드 그리드 -->
-    <div id="course-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      <!-- JS로 렌더링 -->
-    </div>
+      <!-- Q3: 목적 -->
+      <div class="ob-card">
+        <div class="q-header">
+          <div class="q-num">3</div>
+          <div>
+            <div class="q-title">이번 산행의 목적</div>
+            <div class="q-sub">가장 중요한 한 가지</div>
+          </div>
+        </div>
+        <div class="ob-options ob-options-4">
+          <button class="ob-btn selected" data-group="purpose" data-value="풍경">풍경·단풍</button>
+          <button class="ob-btn" data-group="purpose" data-value="맛집">맛집·카페</button>
+          <button class="ob-btn" data-group="purpose" data-value="운동">운동·도전</button>
+          <button class="ob-btn" data-group="purpose" data-value="인스타">가볍게·인스타</button>
+        </div>
+      </div>
 
-    <!-- 검색 결과 없음 -->
-    <div id="no-results" class="hidden flex flex-col items-center justify-center py-24 text-center">
-      <div class="text-6xl mb-4">🏔️</div>
-      <h3 class="text-xl font-semibold text-gray-700 mb-2">조건에 맞는 코스가 없습니다</h3>
-      <p class="text-gray-500 text-sm mb-4">다른 필터를 선택해 보세요</p>
-      <button onclick="resetFilters()" class="px-5 py-2.5 bg-green-500 text-white rounded-full text-sm font-medium hover:bg-green-600 transition-colors">
-        필터 초기화
+      <!-- Q4: 언제 -->
+      <div class="ob-card">
+        <div class="q-header">
+          <div class="q-num">4</div>
+          <div><div class="q-title">언제 가시나요?</div></div>
+        </div>
+        <div class="ob-options ob-options-4">
+          <button class="ob-btn selected" data-group="season" data-value="봄">봄</button>
+          <button class="ob-btn" data-group="season" data-value="여름">여름</button>
+          <button class="ob-btn" data-group="season" data-value="가을">가을</button>
+          <button class="ob-btn" data-group="season" data-value="겨울">겨울</button>
+        </div>
+      </div>
+
+      <!-- Q5: 코스 길이 -->
+      <div class="ob-card">
+        <div class="q-header">
+          <div class="q-num">5</div>
+          <div><div class="q-title">원하는 코스 길이</div></div>
+        </div>
+        <div class="ob-options">
+          <button class="ob-btn" data-group="duration" data-value="3h">짧게 · ~2.5h</button>
+          <button class="ob-btn selected" data-group="duration" data-value="3-6h">보통 · 2.5~4.5h</button>
+          <button class="ob-btn" data-group="duration" data-value="6h+">길어도 OK</button>
+        </div>
+      </div>
+
+      <!-- Q6: 이동수단 -->
+      <div class="ob-card">
+        <div class="q-header">
+          <div class="q-num">6</div>
+          <div><div class="q-title">주 이동수단</div></div>
+        </div>
+        <div class="ob-options">
+          <button class="ob-btn" data-group="transport" data-value="대중교통">대중교통 위주</button>
+          <button class="ob-btn selected" data-group="transport" data-value="상관없음">상관없음</button>
+        </div>
+      </div>
+
+    </div><!-- /ob-questions -->
+
+    <!-- CTA -->
+    <div class="cta-wrap">
+      <button id="btn-find" class="cta-btn" onclick="runOnboarding()">
+        나에게 맞는 코스 찾기 →
       </button>
     </div>
 
-    <!-- 로딩 스피너 -->
-    <div id="loading" class="flex flex-col items-center justify-center py-24">
-      <div class="loading-spinner mb-4"></div>
-      <p class="text-gray-500 text-sm">코스 정보를 불러오는 중...</p>
-    </div>
-  </main>
+  </div><!-- /screen-onboarding -->
 
-  <!-- 북마크 저장 코스 모달 -->
+
+  <!-- ================================================================
+       SCREEN B — 추천 결과 + 전체 코스
+       ================================================================ -->
+  <div id="screen-results" class="hidden">
+
+    <!-- 다시 추천받기 바 -->
+    <div class="back-bar">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+        <button onclick="goToOnboarding()"
+          class="flex items-center gap-1.5 text-sm font-bold transition-colors"
+          style="color:var(--forest)">
+          ← 다시 추천받기
+        </button>
+        <span class="text-gray-300 select-none">|</span>
+        <span id="profile-summary" class="text-sm text-gray-500 truncate"></span>
+      </div>
+    </div>
+
+    <!-- Top 3 추천 -->
+    <div class="py-8 px-4" style="background:var(--beige-dark)">
+      <div class="max-w-4xl mx-auto">
+        <h2 class="text-base font-black mb-4" style="color:var(--forest)">내 맞춤 추천 코스 Top 3</h2>
+        <div id="recommendation-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <!-- JS 렌더링 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 섹션 구분선 -->
+    <div class="section-divider-bar max-w-4xl mx-auto px-4">전체 코스 탐색</div>
+
+    <!-- 필터 바 -->
+    <div class="bg-white border-b border-gray-200 sticky z-30" style="top:var(--header-height)">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">난이도</span>
+          <div class="flex gap-2 overflow-x-auto filter-scroll pb-0.5">
+            <button class="filter-btn difficulty-btn active px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="전체">전체</button>
+            <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="초급">🟢 초급</button>
+            <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="중급">🟠 중급</button>
+            <button class="filter-btn difficulty-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all" data-difficulty="고급">🔴 고급</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">태그</span>
+          <div class="flex gap-2 overflow-x-auto filter-scroll pb-0.5">
+            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#초보가능">🟢 #초보가능</button>
+            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#관절보호">🦵 #관절보호</button>
+            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#가벼운발걸음">🚶 #가벼운발걸음</button>
+            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#오운완">🏅 #오운완</button>
+            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#원점회귀">🔄 #원점회귀</button>
+            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#대중교통가능">🚌 #대중교통</button>
+            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#케이블카">🚡 #케이블카</button>
+            <button class="filter-btn tag-btn px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border" data-tag="#인생샷">📸 #인생샷</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 코스 그리드 -->
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+      <div class="flex items-center justify-between mb-4">
+        <p class="text-sm text-gray-600">
+          총 <span id="result-count" class="font-semibold text-gray-900">0</span>개의 코스
+        </p>
+        <div id="active-filters" class="flex gap-2 flex-wrap"></div>
+      </div>
+
+      <div id="course-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+      <div id="no-results" class="hidden flex flex-col items-center justify-center py-24 text-center">
+        <div class="text-6xl mb-4">🏔️</div>
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">조건에 맞는 코스가 없습니다</h3>
+        <p class="text-gray-500 text-sm mb-4">다른 필터를 선택해 보세요</p>
+        <button onclick="resetFilters()"
+          class="px-5 py-2.5 rounded-full text-sm font-medium text-white transition-colors"
+          style="background:var(--forest)">
+          필터 초기화
+        </button>
+      </div>
+
+      <div id="loading" class="flex flex-col items-center justify-center py-24">
+        <div class="loading-spinner mb-4"></div>
+        <p class="text-gray-500 text-sm">코스 정보를 불러오는 중...</p>
+      </div>
+    </main>
+
+  </div><!-- /screen-results -->
+
+
+  <!-- ================================================================
+       북마크 모달
+       ================================================================ -->
   <div id="bookmarks-modal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-black/40" onclick="closeBookmarksModal()"></div>
     <div class="absolute right-0 top-0 h-full w-full max-w-sm bg-white shadow-2xl flex flex-col slide-in-right">
@@ -130,9 +273,7 @@
         <h2 class="text-lg font-bold">🔖 저장된 코스</h2>
         <button onclick="closeBookmarksModal()" class="p-2 rounded-full hover:bg-gray-100 text-gray-500">✕</button>
       </div>
-      <div id="bookmarks-list" class="flex-1 overflow-y-auto p-4">
-        <!-- JS로 렌더링 -->
-      </div>
+      <div id="bookmarks-list" class="flex-1 overflow-y-auto p-4"></div>
     </div>
   </div>
 
@@ -141,92 +282,184 @@
     <span id="toast-msg">링크가 복사되었습니다!</span>
   </div>
 
-  <!-- 스크립트 모듈 -->
+
+  <!-- ================================================================
+       스크립트
+       ================================================================ -->
   <script src="js/bookmark.js"></script>
   <script src="js/recommendation.js"></script>
   <script src="js/filter.js?v=2"></script>
   <script>
-    // ===== 온보딩 추천 테스트 함수 =====
-    function runRecommendationTest() {
-      if (!window._allCourses || window._allCourses.length === 0) return;
-      
-      const userProfile = {
-        experience: document.getElementById('user-exp').value,
-        stamina: document.getElementById('user-stam').value,
-        time: document.getElementById('user-time').value,
-        purpose: document.getElementById('user-purp').value,
-        region: document.getElementById('user-reg').value
-      };
-      
-      const recommended = window.getRecommendedCourses(window._allCourses, userProfile, 3);
-      const container = document.getElementById('recommendation-results');
-      
-      container.innerHTML = recommended.map(course => `
-        <a href="course.html?id=${course.id}" class="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden hover:shadow-md transition-shadow flex">
-          <div class="p-4 flex-1">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-blue-600 text-xs font-bold px-2 py-0.5 bg-blue-100 rounded-full">매칭도 ${course.matchScore}%</span>
-              <span class="text-xs text-gray-500">${course.region}</span>
-            </div>
-            <h3 class="font-bold text-gray-900">${course.mountain}</h3>
-            <p class="text-xs text-gray-600 line-clamp-1">${course.name}</p>
-          </div>
-        </a>
-      `).join('');
-      container.classList.remove('hidden');
+    // ── 옵션 버튼 그룹 선택 토글 ──────────────────────────────
+    document.querySelectorAll('.ob-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const group = this.dataset.group;
+        document.querySelectorAll(`.ob-btn[data-group="${group}"]`)
+          .forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+      });
+    });
+
+    // ── 스텝 인디케이터 업데이트 ──────────────────────────────
+    function setStep(n) {
+      document.querySelectorAll('.step-item').forEach(el => el.classList.remove('active'));
+      const target = document.querySelector(`.step-item[data-step="${n}"]`);
+      if (target) target.classList.add('active');
     }
 
-    // 페이지 초기화
+    // ── 선택값 읽기 ───────────────────────────────────────────
+    function getSelected(group) {
+      const el = document.querySelector(`.ob-btn.selected[data-group="${group}"]`);
+      return el ? el.dataset.value : null;
+    }
+
+    // ── 기존 recommendation.js 엔진에 맞게 매핑 ──────────────
+    function buildUserProfile() {
+      const fitness  = getSelected('fitness')  || '중급';
+      const duration = getSelected('duration') || '3-6h';
+      const purpose  = getSelected('purpose')  || '풍경';
+
+      const staminaMap  = { '처음': '여유', '중급': '보통', '고수': '강행군' };
+      const purposeMap  = { '풍경': '풍경', '맛집': '풍경', '운동': '운동', '인스타': '풍경' };
+
+      return {
+        experience: fitness,
+        stamina:    staminaMap[fitness]   || '보통',
+        time:       duration,
+        purpose:    purposeMap[purpose]   || '풍경',
+        region:     ''
+      };
+    }
+
+    // ── 선택 요약 텍스트 ──────────────────────────────────────
+    function buildSummaryText() {
+      const labels = {
+        fitness:   { '처음': '입문·천천히', '중급': '보통 체력', '고수': '자신있음' },
+        companion: { '혼자': '혼자', '친구·연인': '친구·연인', '가족·아이': '가족·아이' },
+        purpose:   { '풍경': '풍경·단풍', '맛집': '맛집·카페', '운동': '운동·도전', '인스타': '가볍게·인스타' },
+        season:    { '봄': '봄', '여름': '여름', '가을': '가을', '겨울': '겨울' },
+        duration:  { '3h': '짧은코스', '3-6h': '보통코스', '6h+': '장거리' },
+      };
+      return ['fitness','companion','purpose','season','duration']
+        .map(g => labels[g]?.[getSelected(g)])
+        .filter(Boolean)
+        .join(' · ');
+    }
+
+    // ── Top 3 추천 카드 렌더링 ────────────────────────────────
+    function renderRecommendationCards(courses) {
+      const container = document.getElementById('recommendation-cards');
+      if (!courses.length) {
+        container.innerHTML = '<p class="col-span-3 text-center text-sm text-gray-400 py-8">추천 코스를 찾지 못했습니다.</p>';
+        return;
+      }
+      container.innerHTML = courses.map((c, i) => {
+        const tags = (c.personaTags || c.peakfitTags || '')
+          .trim().split(/\s+/).filter(Boolean).slice(0, 2);
+        const diffClass = c.difficulty === '초급' ? 'diff-easy' : c.difficulty === '중급' ? 'diff-med' : 'diff-hard';
+        const dist = c.totalDistance ? c.totalDistance.toFixed(1) + 'km' : '—';
+        const gain = c.elevationGain ? '+' + Math.round(c.elevationGain) + 'm' : '—';
+        return `
+          <a href="course.html?id=${c.id}" class="rec-card">
+            <div class="rec-thumb">
+              <img src="${c.thumbnail || ''}" alt="${c.mountain}"
+                   onerror="this.parentElement.style.background='var(--beige-dark)'">
+              <div class="rec-rank">${i + 1}</div>
+              <div class="match-badge">${c.matchScore}% 매칭</div>
+            </div>
+            <div class="rec-body">
+              <div class="rec-meta">
+                <span class="rec-region">${c.region || ''}</span>
+                <span class="rec-diff ${diffClass}">${c.difficulty || ''}</span>
+              </div>
+              <div class="rec-mountain">${c.mountain}</div>
+              <div class="rec-name">${c.name || ''}</div>
+              <div class="rec-stats">
+                <span>📏 ${dist}</span>
+                <span>⛰️ ${gain}</span>
+              </div>
+              <div class="rec-tags">
+                ${tags.map(t => `<span class="rec-tag">${t}</span>`).join('')}
+              </div>
+            </div>
+          </a>`;
+      }).join('');
+    }
+
+    // ── CTA 클릭 → Screen B 전환 ──────────────────────────────
+    function runOnboarding() {
+      if (!window._allCourses || window._allCourses.length === 0) {
+        alert('코스 데이터를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      const userProfile = buildUserProfile();
+      const top3 = window.getRecommendedCourses(window._allCourses, userProfile, 3);
+
+      renderRecommendationCards(top3);
+      document.getElementById('profile-summary').textContent = buildSummaryText();
+
+      document.getElementById('screen-onboarding').classList.add('hidden');
+      document.getElementById('screen-results').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setStep(2);
+    }
+
+    // ── 다시 추천받기 → Screen A 복귀 ─────────────────────────
+    function goToOnboarding() {
+      document.getElementById('screen-results').classList.add('hidden');
+      document.getElementById('screen-onboarding').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setStep(1);
+    }
+
+    // ── 페이지 초기화 ─────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
-      initFilterPage();
+      initFilterPage();   // courses.json 백그라운드 로드 시작
+
+      document.getElementById('bookmarks-toggle-btn').addEventListener('click', () => {
+        openBookmarksModal();
+      });
     });
 
-    // 북마크 모달 열기
-    document.getElementById('bookmarks-toggle-btn').addEventListener('click', () => {
-      openBookmarksModal();
-    });
-
+    // ── 북마크 모달 ───────────────────────────────────────────
     function openBookmarksModal() {
-      const modal = document.getElementById('bookmarks-modal');
-      modal.classList.remove('hidden');
+      document.getElementById('bookmarks-modal').classList.remove('hidden');
       renderBookmarksList();
     }
-
     function closeBookmarksModal() {
       document.getElementById('bookmarks-modal').classList.add('hidden');
     }
-
-    // 저장된 코스 목록 렌더링
     function renderBookmarksList() {
-      const ids = getAllBookmarks();
+      const ids  = getAllBookmarks();
       const list = document.getElementById('bookmarks-list');
-
-      if (ids.length === 0) {
+      if (!ids.length) {
         list.innerHTML = `
           <div class="flex flex-col items-center justify-center h-48 text-center">
             <div class="text-4xl mb-3">📍</div>
-            <p class="text-gray-500 text-sm">저장된 코스가 없습니다.<br/>마음에 드는 코스를 저장해보세요!</p>
+            <p class="text-gray-500 text-sm">저장된 코스가 없습니다.<br>마음에 드는 코스를 저장해보세요!</p>
           </div>`;
         return;
       }
-
-      // 코스 데이터에서 북마크된 것만 필터링
       const bookmarked = (window._allCourses || []).filter(c => ids.includes(c.id));
       list.innerHTML = bookmarked.map(c => `
-        <div class="flex gap-3 p-3 rounded-xl hover:bg-gray-50 border border-gray-100 mb-3 cursor-pointer" onclick="location.href='course.html?id=${c.id}'">
-          <img src="${c.thumbnail}" alt="${c.name}" class="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+        <div class="flex gap-3 p-3 rounded-xl hover:bg-gray-50 border border-gray-100 mb-3 cursor-pointer"
+             onclick="location.href='course.html?id=${c.id}'">
+          <img src="${c.thumbnail}" alt="${c.name}" class="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+               onerror="this.style.display='none'" />
           <div class="flex-1 min-w-0">
             <p class="font-semibold text-sm text-gray-900 truncate">${c.name}</p>
-            <p class="text-xs text-gray-500 mt-0.5">${c.region}</p>
+            <p class="text-xs text-gray-500 mt-0.5">${c.region || ''}</p>
             <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${getDifficultyClass(c.difficulty)}">${c.difficulty}</span>
           </div>
-          <button onclick="event.stopPropagation(); toggleBookmark('${c.id}'); renderBookmarksList();" class="text-red-400 hover:text-red-600 text-lg flex-shrink-0">🗑️</button>
+          <button onclick="event.stopPropagation(); toggleBookmark('${c.id}'); renderBookmarksList();"
+                  class="text-red-400 hover:text-red-600 text-lg flex-shrink-0">🗑️</button>
         </div>`).join('');
     }
 
     function getDifficultyClass(d) {
-      return d === '초급' ? 'bg-green-100 text-green-700' :
-             d === '중급' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700';
+      return d === '초급' ? 'bg-green-100 text-green-700'
+           : d === '중급' ? 'bg-orange-100 text-orange-700'
+           :                'bg-red-100 text-red-700';
     }
 
     function resetFilters() {
